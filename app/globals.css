@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+	--background: #0b0f14;
+	--foreground: #e8ecf1;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--font-sans: var(--font-geist-sans);
+	--font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+	background: var(--background);
+	color: var(--foreground);
+	font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Shuffling-deck loading animation (see components/palace/SceneLoader.tsx).
+   Each card lifts out of the stack, fans to one side, and drops back — the
+   staggered per-card delays make it read as a continuous riffle. */
+@keyframes mp-riffle {
+	0%,
+	100% {
+		transform: translate3d(0, 0, 0) rotate(0deg);
+	}
+	22% {
+		transform: translate3d(var(--dir), -46px, 40px) rotate(var(--rot));
+	}
+	50% {
+		transform: translate3d(0, 0, 0) rotate(0deg);
+	}
+}
+
+.mp-card {
+	animation: mp-riffle 1.9s ease-in-out infinite;
+	will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mp-card {
+		animation-duration: 3.6s;
+	}
 }

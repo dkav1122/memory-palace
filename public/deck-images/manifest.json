@@ -1,0 +1,23 @@
+{
+  "entries": [
+    { "card": "AD", "file": "AD-tiger-woods.png", "name": "Tiger Woods" },
+    { "card": "2D", "file": "2D-conor-mcgregor.png", "name": "Conor McGregor" },
+    { "card": "3D", "file": "3D-kelly-slater.png", "name": "Kelly Slater" },
+    { "card": "4D", "file": "4D-muhammad-ali.png", "name": "Muhammad Ali" },
+    { "card": "5D", "file": "5D-david-goggins.png", "name": "David Goggins" },
+    { "card": "6D", "file": "6D-tom-brady.png", "name": "Tom Brady" },
+    { "card": "7D", "file": "7D-keenan-cornelius.png", "name": "Keenan Cornelius" },
+    { "card": "8D", "file": "8D-kobe-bryant.png", "name": "Kobe Bryant" },
+    { "card": "9D", "file": "9D-barry-bonds.png", "name": "Barry Bonds" },
+    { "card": "10D", "file": "10D-laird-hamilton.png", "name": "Laird Hamilton" },
+    { "card": "JD", "file": "JD-ross-edgley.png", "name": "Ross Edgley" },
+    { "card": "QD", "file": "QD-ronda-rousey.png", "name": "Ronda Rousey" },
+    { "card": "KD", "file": "KD-michael-jordan.png", "name": "Michael Jordan" },
+    { "card": "AC", "file": "AC-goku.png", "name": "Goku" },
+    { "card": "2C", "file": "2C-vegeta.png", "name": "Vegeta" },
+    { "card": "3C", "file": "3C-gohan.png", "name": "Gohan" },
+    { "card": "8C", "file": "8C-aang.png", "name": "Aang" },
+    { "card": "9C", "file": "9C-sokka.png", "name": "Sokka" },
+    { "card": "QC", "file": "QC-katara.png", "name": "Katara" }
+  ]
+}
