@@ -20,15 +20,15 @@ export function DeckSizePicker({
 						key={size}
 						disabled={!enabled}
 						onClick={() => onPick(size)}
-						className="flex flex-col items-center rounded-xl border border-zinc-700 bg-zinc-900 px-6 py-4 hover:border-emerald-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-30"
+						className="flex flex-col items-center rounded-xl border border-sky-200 bg-white/70 px-6 py-4 shadow-sm transition-colors hover:border-sky-400 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-40"
 						title={
 							enabled
 								? `Shuffle ${size} cards`
 								: `Assign ${size - assignedCount} more photos to unlock`
 						}
 					>
-						<span className="text-2xl font-bold">{size}</span>
-						<span className="text-xs text-zinc-400">cards</span>
+						<span className="text-2xl font-bold text-slate-900">{size}</span>
+						<span className="text-xs text-sky-600">cards</span>
 					</button>
 				);
 			})}

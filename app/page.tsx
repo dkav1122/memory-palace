@@ -108,9 +108,9 @@ export default function HomePage() {
 								{best.map(b => (
 									<div
 										key={`${b.deckSize}-${b.mode}`}
-										className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center shadow-sm"
+										className="rounded-xl border border-green-300 bg-green-50 p-4 text-center shadow-sm"
 									>
-										<div className="text-xs text-amber-700">
+										<div className="text-xs text-green-700">
 											Best · {b.deckSize} cards · {b.mode}
 										</div>
 										<div className="mt-1 text-xl font-bold font-mono text-sky-950">
