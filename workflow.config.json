@@ -1,0 +1,20 @@
+{
+  "github": { "repo": "dkav1122/memory-palace" },
+  "cursor": { "model": "composer-2.5" },
+  "jira": {
+    "baseUrl": "https://dixonsworkspace-13267887.atlassian.net",
+    "projectKey": "KAN",
+    "boardId": 1,
+    "issueType": "Task",
+    "statusMap": {
+      "submitted": { "jiraStatus": "To Do", "statusId": "10000", "transitionId": "11" },
+      "triaging": { "jiraStatus": "To Do", "statusId": "10000", "transitionId": "11" },
+      "triaged": { "jiraStatus": "Triaged", "statusId": "10001", "transitionId": "21" },
+      "ready": { "jiraStatus": "Ready", "statusId": "10002", "transitionId": "31" },
+      "executing": { "jiraStatus": "Executing", "statusId": "10003", "transitionId": "41" },
+      "pr_ready": { "jiraStatus": "PR Ready", "statusId": "10036", "transitionId": "2" }
+    }
+  },
+  "reddit": { "subreddit": null },
+  "execution": { "wipLimit": 1 }
+}
