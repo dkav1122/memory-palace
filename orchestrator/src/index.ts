@@ -1,15 +1,17 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { loadConfig, loadJiraCredentials } from "./config.js";
+import { loadConfig, loadCursorApiKey, loadJiraCredentials } from "./config.js";
 import { openDb } from "./db.js";
 import { JiraClient } from "./jira.js";
 import { registerRoutes } from "./routes.js";
 import { startReconciler } from "./reconciler.js";
+import { createTriageWorker } from "./triage.js";
 
 const config = loadConfig();
 const db = openDb();
 const jira = new JiraClient(config, loadJiraCredentials());
+const triage = createTriageWorker({ db, config, jira, cursorApiKey: loadCursorApiKey() });
 const startedAt = Date.now();
 
 const app = new Hono();
@@ -31,14 +33,14 @@ app.get("/health", (c) => {
   });
 });
 
-registerRoutes(app, { db, config, jira });
+registerRoutes(app, { db, config, jira, triage });
 
 const port = Number(process.env.ORCH_PORT ?? 4100);
 const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[orchestrator] API listening on http://localhost:${info.port}`);
 });
 
-const stopReconciler = startReconciler(db, config);
+const stopReconciler = startReconciler(db, config, triage);
 
 function shutdown(signal: string) {
   console.log(`[orchestrator] ${signal} received, shutting down`);
