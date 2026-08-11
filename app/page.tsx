@@ -94,6 +94,23 @@ export default function HomePage() {
 				</div>
 			</div>
 
+			{/* support portal */}
+			<Link
+				href="/support"
+				className="group mt-4 flex items-center justify-between rounded-2xl border border-sky-200 bg-white/70 px-6 py-4 shadow-sm transition hover:border-sky-400 hover:shadow-md"
+			>
+				<div>
+					<h2 className="text-base font-bold text-sky-950 group-hover:text-emerald-600">
+						Support
+					</h2>
+					<p className="mt-0.5 text-sm text-slate-600">
+						Report a bug, incident, or feature request — then track its
+						progress.
+					</p>
+				</div>
+				<span className="text-xl font-bold text-sky-950">→</span>
+			</Link>
+
 			{/* history */}
 			<section className="mt-10">
 				<h2 className="mb-3 text-lg font-bold text-sky-950">Your runs</h2>

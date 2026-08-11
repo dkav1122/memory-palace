@@ -1,14 +1,20 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { loadConfig } from "./config.js";
+import { cors } from "hono/cors";
+import { loadConfig, loadJiraCredentials } from "./config.js";
 import { openDb } from "./db.js";
+import { JiraClient } from "./jira.js";
+import { registerRoutes } from "./routes.js";
 import { startReconciler } from "./reconciler.js";
 
 const config = loadConfig();
 const db = openDb();
+const jira = new JiraClient(config, loadJiraCredentials());
 const startedAt = Date.now();
 
 const app = new Hono();
+// Portal pages call this API cross-origin from the game app (demo scope: no auth).
+app.use("/api/*", cors());
 
 app.get("/health", (c) => {
   let dbOk = true;
@@ -24,6 +30,8 @@ app.get("/health", (c) => {
     project: config.jira.projectKey,
   });
 });
+
+registerRoutes(app, { db, config, jira });
 
 const port = Number(process.env.ORCH_PORT ?? 4100);
 const server = serve({ fetch: app.fetch, port }, (info) => {
