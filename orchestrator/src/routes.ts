@@ -10,6 +10,7 @@ import {
   setTicketJiraKey,
 } from "./db.js";
 import type { JiraClient } from "./jira.js";
+import { buildIntakeIssue, type TriageWorker } from "./triage.js";
 import type { RequestSource, RequestType, WorkflowConfig } from "./types.js";
 
 const REQUEST_TYPES: RequestType[] = ["bug", "incident", "feature"];
@@ -70,9 +71,10 @@ export interface RouteDeps {
   db: Database.Database;
   config: WorkflowConfig;
   jira: JiraClient;
+  triage: TriageWorker;
 }
 
-export function registerRoutes(app: Hono, { db, config, jira }: RouteDeps): void {
+export function registerRoutes(app: Hono, { db, config, jira, triage }: RouteDeps): void {
   app.post("/api/requests", async (c) => {
     let body: unknown;
     try {
@@ -96,17 +98,12 @@ export function registerRoutes(app: Hono, { db, config, jira }: RouteDeps): void
       sourceRef: input.sourceRef ?? null,
     });
 
+    const request = getRequest(db, id)!;
+
     // Jira mirror: the request row above is the source of truth and survives a Jira outage.
     let jiraResult: { key: string; url: string } | null = null;
     try {
-      const submitter = input.submitterName
-        ? `${input.submitterName}${input.submitterContact ? ` (${input.submitterContact})` : ""}`
-        : "anonymous";
-      const created = await jira.createIssue({
-        summary: `[${input.type}] ${input.title}`,
-        description: `${input.description}\n\nSubmitted by: ${submitter} | Source: ${input.source} | Request ID: ${id}`,
-        labels: ["intake", input.type, `source-${input.source}`],
-      });
+      const created = await jira.createIssue(buildIntakeIssue(request));
       setTicketJiraKey(db, id, created.key);
       addEvent(
         db,
@@ -116,6 +113,9 @@ export function registerRoutes(app: Hono, { db, config, jira }: RouteDeps): void
         { key: created.key, url: created.url },
       );
       jiraResult = { key: created.key, url: created.url };
+      // Push-first trigger: kick off triage without blocking the response.
+      // Keyless tickets (Jira down) are picked up by the reconciler backfill.
+      void triage.trigger(id);
     } catch (error) {
       console.error(`[intake] Jira create failed for request ${id}:`, error);
       addEvent(db, id, "error", "Jira sync failed — will be retried", {
@@ -123,7 +123,6 @@ export function registerRoutes(app: Hono, { db, config, jira }: RouteDeps): void
       });
     }
 
-    const request = getRequest(db, id)!;
     return c.json(
       { id, status: "submitted", jira: jiraResult, createdAt: request.created_at },
       201,

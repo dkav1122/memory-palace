@@ -39,12 +39,28 @@ export function loadConfig(): WorkflowConfig {
       fail(`jira.statusMap.${status} must define jiraStatus, statusId, transitionId`);
     }
   }
+  if (
+    !Number.isInteger(config.triage?.maxAttempts) ||
+    config.triage.maxAttempts < 1 ||
+    !(config.triage.stuckAfterMinutes > 0)
+  ) {
+    fail("triage.maxAttempts (integer >= 1) and triage.stuckAfterMinutes (> 0) are required");
+  }
   return config;
 }
 
 export interface JiraCredentials {
   email: string;
   apiToken: string;
+}
+
+/** Cursor API key comes from env only, never from workflow.config.json. */
+export function loadCursorApiKey(): string {
+  const apiKey = process.env.CURSOR_API_KEY;
+  if (!apiKey) {
+    throw new Error("CURSOR_API_KEY must be set (see .env.example) — required from Phase 2 on");
+  }
+  return apiKey;
 }
 
 /** Jira credentials come from env only, never from workflow.config.json. */

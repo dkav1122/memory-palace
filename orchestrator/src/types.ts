@@ -64,4 +64,10 @@ export interface WorkflowConfig {
   };
   reddit: { subreddit: string | null };
   execution: { wipLimit: number };
+  triage: {
+    /** Startup failures (CursorAgentError) are retried up to this many times. */
+    maxAttempts: number;
+    /** Tickets stuck in 'triaging' longer than this are marked failed by the reconciler. */
+    stuckAfterMinutes: number;
+  };
 }

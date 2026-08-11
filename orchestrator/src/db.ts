@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
-import type { EventRecord, RequestRecord, TicketRecord } from "./types.js";
+import type { EventRecord, InternalStatus, RequestRecord, TicketRecord } from "./types.js";
 
 const dataDir = resolve(dirname(fileURLToPath(import.meta.url)), "..", "data");
 
@@ -121,4 +121,85 @@ export function listEvents(db: Database.Database, requestId: string): EventRecor
   return db
     .prepare("SELECT * FROM events WHERE request_id = ? ORDER BY id ASC")
     .all(requestId) as EventRecord[];
+}
+
+export function getLastEventOfKind(
+  db: Database.Database,
+  requestId: string,
+  kind: string,
+): EventRecord | undefined {
+  return db
+    .prepare("SELECT * FROM events WHERE request_id = ? AND kind = ? ORDER BY id DESC LIMIT 1")
+    .get(requestId, kind) as EventRecord | undefined;
+}
+
+/**
+ * Atomically swap a ticket's status, guarded on the expected current status.
+ * Returns false when another worker (or a previous crash) already moved it.
+ */
+export function claimTicket(
+  db: Database.Database,
+  requestId: string,
+  from: InternalStatus,
+  to: InternalStatus,
+): boolean {
+  const result = db
+    .prepare(
+      "UPDATE tickets SET status = ?, updated_at = datetime('now') WHERE request_id = ? AND status = ?",
+    )
+    .run(to, requestId, from);
+  return result.changes === 1;
+}
+
+export function setTicketStatus(
+  db: Database.Database,
+  requestId: string,
+  status: InternalStatus,
+): void {
+  db.prepare(
+    "UPDATE tickets SET status = ?, updated_at = datetime('now') WHERE request_id = ?",
+  ).run(status, requestId);
+}
+
+export function setTicketTriaged(
+  db: Database.Database,
+  requestId: string,
+  triageJson: string,
+): void {
+  db.prepare(
+    "UPDATE tickets SET status = 'triaged', triage_json = ?, updated_at = datetime('now') WHERE request_id = ?",
+  ).run(triageJson, requestId);
+}
+
+/** Increment the attempt counter and return the new value. */
+export function incrementTicketAttempts(db: Database.Database, requestId: string): number {
+  db.prepare(
+    "UPDATE tickets SET attempts = attempts + 1, updated_at = datetime('now') WHERE request_id = ?",
+  ).run(requestId);
+  const row = db.prepare("SELECT attempts FROM tickets WHERE request_id = ?").get(requestId) as
+    | { attempts: number }
+    | undefined;
+  return row?.attempts ?? 0;
+}
+
+export function listTicketsByStatus(
+  db: Database.Database,
+  status: InternalStatus,
+): TicketRecord[] {
+  return db
+    .prepare("SELECT * FROM tickets WHERE status = ? ORDER BY updated_at ASC")
+    .all(status) as TicketRecord[];
+}
+
+/** Tickets sitting in `status` for longer than `minutes` (by updated_at, UTC). */
+export function findStuckTickets(
+  db: Database.Database,
+  status: InternalStatus,
+  minutes: number,
+): TicketRecord[] {
+  return db
+    .prepare(
+      "SELECT * FROM tickets WHERE status = ? AND updated_at < datetime('now', ?) ORDER BY updated_at ASC",
+    )
+    .all(status, `-${minutes} minutes`) as TicketRecord[];
 }

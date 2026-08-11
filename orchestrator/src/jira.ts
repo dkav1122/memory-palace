@@ -70,6 +70,13 @@ export class JiraClient {
     await this.request("POST", `/issue/${issueKey}/comment`, { body: toAdf(text) });
   }
 
+  async addLabels(issueKey: string, labels: string[]): Promise<void> {
+    if (!labels.length) return;
+    await this.request("PUT", `/issue/${issueKey}`, {
+      update: { labels: labels.map((label) => ({ add: label })) },
+    });
+  }
+
   async listTransitions(issueKey: string): Promise<JiraTransition[]> {
     const res = await this.request<{ transitions: JiraTransition[] }>(
       "GET",
