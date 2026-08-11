@@ -203,3 +203,64 @@ export function findStuckTickets(
     )
     .all(status, `-${minutes} minutes`) as TicketRecord[];
 }
+
+export function setTicketScore(
+  db: Database.Database,
+  requestId: string,
+  score: number,
+  explanation: string,
+): void {
+  db.prepare(
+    "UPDATE tickets SET score = ?, score_explanation = ?, updated_at = datetime('now') WHERE request_id = ?",
+  ).run(score, explanation, requestId);
+}
+
+/** Triaged tickets with an assessment, joined to request type + created_at for scoring. */
+export interface TriagedForPrioritization {
+  request_id: string;
+  jira_issue_key: string | null;
+  triage_json: string;
+  score: number | null;
+  score_explanation: string | null;
+  type: RequestRecord["type"];
+  title: string;
+  created_at: string;
+}
+
+export function listTriagedForPrioritization(db: Database.Database): TriagedForPrioritization[] {
+  return db
+    .prepare(
+      `SELECT t.request_id, t.jira_issue_key, t.triage_json, t.score, t.score_explanation,
+              r.type, r.title, r.created_at
+       FROM tickets t
+       JOIN requests r ON r.id = t.request_id
+       WHERE t.status = 'triaged' AND t.triage_json IS NOT NULL
+       ORDER BY (t.score IS NULL), t.score DESC, r.created_at ASC`,
+    )
+    .all() as TriagedForPrioritization[];
+}
+
+export interface QueueRow {
+  request_id: string;
+  jira_issue_key: string | null;
+  status: InternalStatus;
+  score: number | null;
+  score_explanation: string | null;
+  type: RequestRecord["type"];
+  title: string;
+  created_at: string;
+}
+
+/** Ranked queue for demo: triaged + ready, highest score first. */
+export function listQueue(db: Database.Database): QueueRow[] {
+  return db
+    .prepare(
+      `SELECT t.request_id, t.jira_issue_key, t.status, t.score, t.score_explanation,
+              r.type, r.title, r.created_at
+       FROM tickets t
+       JOIN requests r ON r.id = t.request_id
+       WHERE t.status IN ('triaged', 'ready')
+       ORDER BY (t.score IS NULL), t.score DESC, r.created_at ASC`,
+    )
+    .all() as QueueRow[];
+}

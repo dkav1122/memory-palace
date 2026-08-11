@@ -3,10 +3,12 @@ import type Database from "better-sqlite3";
 import type { Hono } from "hono";
 import {
   addEvent,
+  countTicketsByStatus,
   createRequestWithTicket,
   getRequest,
   getTicket,
   listEvents,
+  listQueue,
   setTicketJiraKey,
 } from "./db.js";
 import type { JiraClient } from "./jira.js";
@@ -152,6 +154,8 @@ export function registerRoutes(app: Hono, { db, config, jira, triage }: RouteDep
         status: ticket.status,
         jiraIssueKey: ticket.jira_issue_key,
         jiraUrl: ticket.jira_issue_key ? `${jiraBase}/browse/${ticket.jira_issue_key}` : null,
+        score: ticket.score,
+        scoreExplanation: ticket.score_explanation,
         updatedAt: ticket.updated_at,
       },
       events: listEvents(db, id).map((e) => ({
@@ -159,6 +163,28 @@ export function registerRoutes(app: Hono, { db, config, jira, triage }: RouteDep
         kind: e.kind,
         message: e.message,
         createdAt: e.created_at,
+      })),
+    });
+  });
+
+  app.get("/api/queue", (c) => {
+    const counts = countTicketsByStatus(db);
+    const inFlight = (counts.ready ?? 0) + (counts.executing ?? 0);
+    const wipLimit = config.execution.wipLimit;
+    const jiraBase = config.jira.baseUrl.replace(/\/$/, "");
+    return c.json({
+      wipLimit,
+      inFlight,
+      slotsOpen: Math.max(0, wipLimit - inFlight),
+      items: listQueue(db).map((row) => ({
+        requestId: row.request_id,
+        type: row.type,
+        title: row.title,
+        status: row.status,
+        score: row.score,
+        scoreExplanation: row.score_explanation,
+        jiraIssueKey: row.jira_issue_key,
+        jiraUrl: row.jira_issue_key ? `${jiraBase}/browse/${row.jira_issue_key}` : null,
       })),
     });
   });

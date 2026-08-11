@@ -77,6 +77,13 @@ export class JiraClient {
     });
   }
 
+  /** Set the issue Priority field by standard name (Highest / High / Medium / Low / Lowest). */
+  async setPriority(issueKey: string, priorityName: string): Promise<void> {
+    await this.request("PUT", `/issue/${issueKey}`, {
+      fields: { priority: { name: priorityName } },
+    });
+  }
+
   async listTransitions(issueKey: string): Promise<JiraTransition[]> {
     const res = await this.request<{ transitions: JiraTransition[] }>(
       "GET",

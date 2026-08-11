@@ -46,6 +46,9 @@ export function loadConfig(): WorkflowConfig {
   ) {
     fail("triage.maxAttempts (integer >= 1) and triage.stuckAfterMinutes (> 0) are required");
   }
+  if (!Number.isInteger(config.execution?.wipLimit) || config.execution.wipLimit < 1) {
+    fail("execution.wipLimit must be an integer >= 1");
+  }
   return config;
 }
 
