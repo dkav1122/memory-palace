@@ -35,7 +35,7 @@ app.get("/health", (c) => {
   });
 });
 
-registerRoutes(app, { db, config, jira, triage });
+registerRoutes(app, { db, config, triage });
 
 const port = Number(process.env.ORCH_PORT ?? 4100);
 const server = serve({ fetch: app.fetch, port }, (info) => {

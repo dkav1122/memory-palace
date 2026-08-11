@@ -66,6 +66,25 @@ export class JiraClient {
     return { key: created.key, id: created.id, url: `${this.baseUrl}/browse/${created.key}` };
   }
 
+  /**
+   * Recover an issue created before the key was persisted (crash between create
+   * and setTicketJiraKey). Matches the "Request ID: <uuid>" line in descriptions.
+   */
+  async findIssueKeyByRequestId(requestId: string): Promise<string | null> {
+    // UUIDs are JQL-safe; quote for exact token match across hyphenated ids.
+    const jql = `project = ${this.config.jira.projectKey} AND text ~ "${requestId}" ORDER BY created ASC`;
+    const res = await this.request<{ issues: Array<{ key: string }> }>("POST", "/search/jql", {
+      jql,
+      maxResults: 5,
+      fields: ["key"],
+    });
+    return res.issues[0]?.key ?? null;
+  }
+
+  issueUrl(issueKey: string): string {
+    return `${this.baseUrl}/browse/${issueKey}`;
+  }
+
   async addComment(issueKey: string, text: string): Promise<void> {
     await this.request("POST", `/issue/${issueKey}/comment`, { body: toAdf(text) });
   }

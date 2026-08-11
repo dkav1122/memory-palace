@@ -16,6 +16,6 @@
     }
   },
   "reddit": { "subreddit": null },
-  "execution": { "wipLimit": 1 },
+  "execution": { "wipLimit": 3 },
   "triage": { "maxAttempts": 3, "stuckAfterMinutes": 20 }
 }

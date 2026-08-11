@@ -9,10 +9,8 @@ import {
   getTicket,
   listEvents,
   listQueue,
-  setTicketJiraKey,
 } from "./db.js";
-import type { JiraClient } from "./jira.js";
-import { buildIntakeIssue, type TriageWorker } from "./triage.js";
+import { type TriageWorker } from "./triage.js";
 import type { RequestSource, RequestType, WorkflowConfig } from "./types.js";
 
 const REQUEST_TYPES: RequestType[] = ["bug", "incident", "feature"];
@@ -72,11 +70,10 @@ function validateIntake(body: unknown): { ok: true; value: IntakeBody } | { ok: 
 export interface RouteDeps {
   db: Database.Database;
   config: WorkflowConfig;
-  jira: JiraClient;
   triage: TriageWorker;
 }
 
-export function registerRoutes(app: Hono, { db, config, jira, triage }: RouteDeps): void {
+export function registerRoutes(app: Hono, { db, config, triage }: RouteDeps): void {
   app.post("/api/requests", async (c) => {
     let body: unknown;
     try {
@@ -105,19 +102,10 @@ export function registerRoutes(app: Hono, { db, config, jira, triage }: RouteDep
     // Jira mirror: the request row above is the source of truth and survives a Jira outage.
     let jiraResult: { key: string; url: string } | null = null;
     try {
-      const created = await jira.createIssue(buildIntakeIssue(request));
-      setTicketJiraKey(db, id, created.key);
-      addEvent(
-        db,
-        id,
-        "jira_created",
-        `Jira ticket ${created.key} created in New / Awaiting Triage`,
-        { key: created.key, url: created.url },
-      );
-      jiraResult = { key: created.key, url: created.url };
+      jiraResult = await triage.ensureJiraIssue(id, "intake");
       // Push-first trigger: kick off triage without blocking the response.
       // Keyless tickets (Jira down) are picked up by the reconciler backfill.
-      void triage.trigger(id);
+      if (jiraResult) void triage.trigger(id);
     } catch (error) {
       console.error(`[intake] Jira create failed for request ${id}:`, error);
       addEvent(db, id, "error", "Jira sync failed — will be retried", {
