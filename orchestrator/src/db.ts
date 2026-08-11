@@ -86,10 +86,18 @@ export function createRequestWithTicket(db: Database.Database, input: NewRequest
   tx();
 }
 
-export function setTicketJiraKey(db: Database.Database, requestId: string, issueKey: string): void {
-  db.prepare(
-    "UPDATE tickets SET jira_issue_key = ?, updated_at = datetime('now') WHERE request_id = ?",
-  ).run(issueKey, requestId);
+/**
+ * First-writer-wins: store the Jira key only when still null.
+ * Returns true when this call set the key; false if another writer already won.
+ */
+export function setTicketJiraKey(db: Database.Database, requestId: string, issueKey: string): boolean {
+  const result = db
+    .prepare(
+      `UPDATE tickets SET jira_issue_key = ?, updated_at = datetime('now')
+       WHERE request_id = ? AND jira_issue_key IS NULL`,
+    )
+    .run(issueKey, requestId);
+  return result.changes === 1;
 }
 
 export function getRequest(db: Database.Database, id: string): RequestRecord | undefined {

@@ -1,4 +1,5 @@
 import { Agent, CursorAgentError } from "@cursor/sdk";
+import type { Run, RunResult } from "@cursor/sdk";
 import type Database from "better-sqlite3";
 import { extractAssessment, type TriageAssessment } from "./assessment.js";
 import {
@@ -17,6 +18,25 @@ import {
 import type { JiraClient } from "./jira.js";
 import type { RequestRecord, WorkflowConfig } from "./types.js";
 
+/** Client stream disconnects — cloud run may still finish successfully. */
+export function isStreamLossError(message: string | undefined | null): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes("stream is no longer available") ||
+    m.includes("stream_expired") ||
+    m.includes("stream expired")
+  );
+}
+
+function isStreamLossResult(result: RunResult): boolean {
+  return result.status === "error" && isStreamLossError(result.error?.message);
+}
+
+function formatRunFailure(result: RunResult): string {
+  return `run ${result.id} ended with status "${result.status}": ${result.error?.message ?? "no error detail"}`;
+}
+
 export interface TriageWorkerDeps {
   db: Database.Database;
   config: WorkflowConfig;
@@ -31,6 +51,15 @@ export interface TriageWorker {
    * Jira key, or already in flight).
    */
   trigger(requestId: string): Promise<void>;
+  /**
+   * Ensure a Jira issue exists for the request (intake + reconciler backfill).
+   * Single-flight per requestId; never overwrites an existing key. Recovers
+   * orphans via JQL when create succeeded but the key was never persisted.
+   */
+  ensureJiraIssue(
+    requestId: string,
+    source?: "intake" | "backfill",
+  ): Promise<{ key: string; url: string } | null>;
   /**
    * Reconciler gates, in order: backfill missing Jira issues, re-trigger
    * triage for eligible submitted tickets (crash/restart safety net), and
@@ -117,12 +146,109 @@ function formatAssessmentComment(a: TriageAssessment): string {
 type RunOutcome =
   | { kind: "parsed"; assessment: TriageAssessment }
   | { kind: "run_failed"; detail: string }
-  | { kind: "parse_failed"; detail: string };
+  | { kind: "parse_failed"; detail: string }
+  | { kind: "stream_lost"; detail: string };
 
 export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWorkerDeps): TriageWorker {
   const inFlight = new Set<string>();
+  /** In-process single-flight for Jira create/recover per request. */
+  const jiraCreates = new Map<string, Promise<{ key: string; url: string } | null>>();
   const repoUrl = `https://github.com/${config.github.repo}`;
   let reconciling = false;
+
+  async function ensureJiraIssue(
+    requestId: string,
+    source: "intake" | "backfill" = "intake",
+  ): Promise<{ key: string; url: string } | null> {
+    const existing = getTicket(db, requestId);
+    if (existing?.jira_issue_key) {
+      return { key: existing.jira_issue_key, url: jira.issueUrl(existing.jira_issue_key) };
+    }
+
+    const pending = jiraCreates.get(requestId);
+    if (pending) return pending;
+
+    const work = doEnsureJiraIssue(requestId, source).finally(() => {
+      jiraCreates.delete(requestId);
+    });
+    jiraCreates.set(requestId, work);
+    return work;
+  }
+
+  async function doEnsureJiraIssue(
+    requestId: string,
+    source: "intake" | "backfill",
+  ): Promise<{ key: string; url: string } | null> {
+    // Re-check after acquiring the single-flight slot (other path may have finished).
+    const ticket = getTicket(db, requestId);
+    if (ticket?.jira_issue_key) {
+      return { key: ticket.jira_issue_key, url: jira.issueUrl(ticket.jira_issue_key) };
+    }
+    const request = getRequest(db, requestId);
+    if (!request) return null;
+
+    // Crash recovery: create succeeded previously but key was never stored.
+    // Best-effort — a search outage must not block intake create.
+    let recoveredKey: string | null = null;
+    try {
+      recoveredKey = await jira.findIssueKeyByRequestId(requestId);
+    } catch (err) {
+      console.error(`[jira] recover search failed for ${requestId}:`, err);
+    }
+    if (recoveredKey) {
+      const won = setTicketJiraKey(db, requestId, recoveredKey);
+      if (won) {
+        addEvent(
+          db,
+          requestId,
+          "jira_created",
+          `Jira ticket ${recoveredKey} recovered (key was missing after create)`,
+          { key: recoveredKey, url: jira.issueUrl(recoveredKey), recovered: true },
+        );
+      }
+      const key = getTicket(db, requestId)?.jira_issue_key ?? recoveredKey;
+      return { key, url: jira.issueUrl(key) };
+    }
+
+    const created = await jira.createIssue(buildIntakeIssue(request));
+    const won = setTicketJiraKey(db, requestId, created.key);
+    if (won) {
+      const suffix = source === "backfill" ? " (backfilled)" : "";
+      addEvent(
+        db,
+        requestId,
+        "jira_created",
+        `Jira ticket ${created.key} created in New / Awaiting Triage${suffix}`,
+        { key: created.key, url: created.url },
+      );
+      return { key: created.key, url: created.url };
+    }
+
+    // Lost race: another writer stored a different key. Comment on the orphan.
+    const winner = getTicket(db, requestId)?.jira_issue_key;
+    if (winner && winner !== created.key) {
+      try {
+        await jira.addComment(
+          created.key,
+          `Duplicate of ${winner} — created by a raced intake/backfill for the same request (${requestId}). This issue can be closed; the pipeline tracks ${winner}.`,
+        );
+      } catch (err) {
+        console.error(`[jira] orphan duplicate comment failed for ${created.key}:`, err);
+      }
+      addEvent(
+        db,
+        requestId,
+        "error",
+        `Discarded duplicate Jira issue ${created.key}; keeping ${winner}`,
+        { orphanKey: created.key, keptKey: winner },
+      );
+      return { key: winner, url: jira.issueUrl(winner) };
+    }
+
+    // Winner is the same key (setTicketJiraKey lost to an identical writer) or missing.
+    const key = winner ?? created.key;
+    return { key, url: jira.issueUrl(key) };
+  }
 
   async function trigger(requestId: string): Promise<void> {
     if (inFlight.has(requestId)) return;
@@ -171,12 +297,11 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
         runId: run.id,
       });
 
-      const result = await run.wait();
-      if (result.status !== "finished") {
-        outcome = {
-          kind: "run_failed",
-          detail: `run ${result.id} ended with status "${result.status}": ${result.error?.message ?? "no error detail"}`,
-        };
+      const result = await waitForRunResult(run, agent.agentId, request.id);
+      if (isStreamLossResult(result)) {
+        outcome = { kind: "stream_lost", detail: formatRunFailure(result) };
+      } else if (result.status !== "finished") {
+        outcome = { kind: "run_failed", detail: formatRunFailure(result) };
       } else {
         let extracted = extractAssessment(result.result);
         if (!extracted.ok) {
@@ -189,18 +314,20 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
             agentId: agent.agentId,
             runId: retryRun.id,
           });
-          const retryResult = await retryRun.wait();
-          extracted =
-            retryResult.status === "finished"
-              ? extractAssessment(retryResult.result)
-              : {
-                  ok: false,
-                  error: `retry run ended with status "${retryResult.status}": ${retryResult.error?.message ?? "no error detail"}`,
-                };
+          const retryResult = await waitForRunResult(retryRun, agent.agentId, request.id);
+          if (isStreamLossResult(retryResult)) {
+            outcome = { kind: "stream_lost", detail: formatRunFailure(retryResult) };
+          } else if (retryResult.status === "finished") {
+            extracted = extractAssessment(retryResult.result);
+            outcome = extracted.ok
+              ? { kind: "parsed", assessment: extracted.value }
+              : { kind: "parse_failed", detail: extracted.error };
+          } else {
+            outcome = { kind: "parse_failed", detail: formatRunFailure(retryResult) };
+          }
+        } else {
+          outcome = { kind: "parsed", assessment: extracted.value };
         }
-        outcome = extracted.ok
-          ? { kind: "parsed", assessment: extracted.value }
-          : { kind: "parse_failed", detail: extracted.error };
       }
     } catch (err) {
       // Thrown (typically CursorAgentError): the run never started — release
@@ -212,6 +339,14 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
     switch (outcome.kind) {
       case "parsed":
         await completeTriage(request.id, issueKey, outcome.assessment);
+        break;
+      case "stream_lost":
+        await handleRetryableFailure(
+          request.id,
+          issueKey,
+          outcome.detail,
+          "stream wait",
+        );
         break;
       case "run_failed":
         await failTicket(
@@ -229,6 +364,36 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
           outcome.detail,
         );
         break;
+    }
+  }
+
+  /**
+   * Wait for a run; on stream-loss, rehydrate the same cloud run via Agent.getRun
+   * once (do not call stream()). Caller treats remaining stream-loss as retryable.
+   */
+  async function waitForRunResult(run: Run, agentId: string, requestId: string): Promise<RunResult> {
+    const result = await run.wait();
+    if (!isStreamLossResult(result)) return result;
+
+    console.warn(
+      `[triage] ${requestId} stream lost on ${run.id}; rehydrating via Agent.getRun`,
+    );
+    addEvent(db, requestId, "error", "Run stream lost — rehydrating same cloud run", {
+      agentId,
+      runId: run.id,
+      detail: result.error?.message,
+    });
+
+    try {
+      const revived = await Agent.getRun(run.id, {
+        runtime: "cloud",
+        agentId,
+        apiKey: cursorApiKey,
+      });
+      return await revived.wait();
+    } catch (err) {
+      console.error(`[triage] ${requestId} rehydrate failed for ${run.id}:`, err);
+      return result;
     }
   }
 
@@ -286,10 +451,23 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
       err instanceof CursorAgentError
         ? `${err.message} (retryable=${err.isRetryable})`
         : String(err);
+    await handleRetryableFailure(requestId, issueKey, detail, "start");
+  }
+
+  /**
+   * Transient failures (startup throw, stream-loss after rehydrate): release
+   * claim back to submitted and let the reconciler retry, up to maxAttempts.
+   */
+  async function handleRetryableFailure(
+    requestId: string,
+    issueKey: string,
+    detail: string,
+    kind: "start" | "stream wait",
+  ): Promise<void> {
     claimTicket(db, requestId, "triaging", "submitted");
     const attempts = incrementTicketAttempts(db, requestId);
     const max = config.triage.maxAttempts;
-    console.error(`[triage] startup failure for ${requestId} (attempt ${attempts}/${max}):`, err);
+    console.error(`[triage] ${kind} failure for ${requestId} (attempt ${attempts}/${max}): ${detail}`);
 
     if (attempts >= max) {
       setTicketStatus(db, requestId, "failed");
@@ -297,13 +475,13 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
         db,
         requestId,
         "error",
-        `Triage agent could not start after ${attempts} attempts — request marked failed`,
+        `Triage agent could not complete ${kind} after ${attempts} attempts — request marked failed`,
         { detail },
       );
       try {
         await jira.addComment(
           issueKey,
-          `Triage agent could not start after ${attempts} attempts: ${detail}`,
+          `Triage agent could not complete (${kind}) after ${attempts} attempts: ${detail}`,
         );
       } catch (commentErr) {
         console.error(`[triage] Jira failure comment failed for ${requestId}:`, commentErr);
@@ -313,7 +491,7 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
         db,
         requestId,
         "error",
-        `Triage agent could not start (attempt ${attempts}/${max}) — will retry`,
+        `Triage agent ${kind} failed (attempt ${attempts}/${max}) — will retry`,
         { detail },
       );
     }
@@ -327,18 +505,8 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
       // (Phase 1 leaves them keyless when Jira is down at intake time).
       for (const ticket of listTicketsByStatus(db, "submitted")) {
         if (ticket.jira_issue_key) continue;
-        const request = getRequest(db, ticket.request_id);
-        if (!request) continue;
         try {
-          const created = await jira.createIssue(buildIntakeIssue(request));
-          setTicketJiraKey(db, request.id, created.key);
-          addEvent(
-            db,
-            request.id,
-            "jira_created",
-            `Jira ticket ${created.key} created in New / Awaiting Triage (backfilled)`,
-            { key: created.key, url: created.url },
-          );
+          await ensureJiraIssue(ticket.request_id, "backfill");
         } catch (err) {
           // Retried next tick; no event per attempt to avoid timeline spam.
           console.error(`[reconciler] Jira backfill failed for ${ticket.request_id}:`, err);
@@ -381,5 +549,5 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
     }
   }
 
-  return { trigger, reconcile };
+  return { trigger, ensureJiraIssue, reconcile };
 }
