@@ -9,7 +9,8 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/*.test.ts",
-    "validate:jira": "tsx scripts/validate-jira.ts"
+    "validate:jira": "tsx scripts/validate-jira.ts",
+    "validate:prioritization": "tsx scripts/validate-prioritization.ts"
   },
   "dependencies": {
     "@cursor/sdk": "^1.0.27",
