@@ -64,12 +64,20 @@ export default function SupportRequestPage() {
 				aria-hidden
 				className="fixed inset-0 -z-10 bg-gradient-to-b from-sky-50 via-sky-100 to-sky-200"
 			/>
-			<Link
-				href="/support"
-				className="text-sm text-slate-500 hover:text-slate-700"
-			>
-				← Back to support
-			</Link>
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<Link
+					href="/support"
+					className="text-sm text-slate-500 hover:text-slate-700"
+				>
+					← Back to support
+				</Link>
+				<Link
+					href="/support/board"
+					className="text-sm font-semibold text-emerald-700 hover:text-emerald-600"
+				>
+					Pipeline board →
+				</Link>
+			</div>
 
 			{notFound ? (
 				<div className="mt-8 rounded-2xl border border-sky-200 bg-white/70 p-8 text-center shadow-sm">

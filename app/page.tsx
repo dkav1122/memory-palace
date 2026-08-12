@@ -95,21 +95,36 @@ export default function HomePage() {
 			</div>
 
 			{/* support portal */}
-			<Link
-				href="/support"
-				className="group mt-4 flex items-center justify-between rounded-2xl border border-sky-200 bg-white/70 px-6 py-4 shadow-sm transition hover:border-sky-400 hover:shadow-md"
-			>
-				<div>
-					<h2 className="text-base font-bold text-sky-950 group-hover:text-emerald-600">
-						Support
-					</h2>
-					<p className="mt-0.5 text-sm text-slate-600">
-						Report a bug, incident, or feature request — then track its
-						progress.
-					</p>
-				</div>
-				<span className="text-xl font-bold text-sky-950">→</span>
-			</Link>
+			<div className="mt-4 grid gap-3 sm:grid-cols-2">
+				<Link
+					href="/support"
+					className="group flex items-center justify-between rounded-2xl border border-sky-200 bg-white/70 px-6 py-4 shadow-sm transition hover:border-sky-400 hover:shadow-md"
+				>
+					<div>
+						<h2 className="text-base font-bold text-sky-950 group-hover:text-emerald-600">
+							Support
+						</h2>
+						<p className="mt-0.5 text-sm text-slate-600">
+							Report a bug, incident, or feature request.
+						</p>
+					</div>
+					<span className="text-xl font-bold text-sky-950">→</span>
+				</Link>
+				<Link
+					href="/support/board"
+					className="group flex items-center justify-between rounded-2xl border border-sky-200 bg-white/70 px-6 py-4 shadow-sm transition hover:border-sky-400 hover:shadow-md"
+				>
+					<div>
+						<h2 className="text-base font-bold text-sky-950 group-hover:text-emerald-600">
+							Pipeline board
+						</h2>
+						<p className="mt-0.5 text-sm text-slate-600">
+							Live open requests and activity.
+						</p>
+					</div>
+					<span className="text-xl font-bold text-sky-950">→</span>
+				</Link>
+			</div>
 
 			{/* history */}
 			<section className="mt-10">

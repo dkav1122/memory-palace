@@ -7,8 +7,10 @@ import {
   createRequestWithTicket,
   getRequest,
   getTicket,
+  listBoard,
   listEvents,
   listQueue,
+  listRecentEvents,
 } from "./db.js";
 import { type TriageWorker } from "./triage.js";
 import type { RequestSource, RequestType, WorkflowConfig } from "./types.js";
@@ -74,6 +76,53 @@ export interface RouteDeps {
 }
 
 export function registerRoutes(app: Hono, { db, config, triage }: RouteDeps): void {
+  app.get("/api/requests", (c) => {
+    const includeTerminal =
+      c.req.query("includeTerminal") === "1" || c.req.query("includeTerminal") === "true";
+    const counts = countTicketsByStatus(db);
+    const inFlight = (counts.ready ?? 0) + (counts.executing ?? 0);
+    const wipLimit = config.execution.wipLimit;
+    const jiraBase = config.jira.baseUrl.replace(/\/$/, "");
+    return c.json({
+      wipLimit,
+      inFlight,
+      slotsOpen: Math.max(0, wipLimit - inFlight),
+      counts,
+      items: listBoard(db, includeTerminal).map((row) => ({
+        requestId: row.request_id,
+        type: row.type,
+        title: row.title,
+        source: row.source,
+        status: row.status,
+        score: row.score,
+        scoreExplanation: row.score_explanation,
+        jiraIssueKey: row.jira_issue_key,
+        jiraUrl: row.jira_issue_key ? `${jiraBase}/browse/${row.jira_issue_key}` : null,
+        prUrl: row.pr_url,
+        attempts: row.attempts,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+    });
+  });
+
+  app.get("/api/events", (c) => {
+    const raw = c.req.query("limit");
+    const parsed = raw !== undefined ? Number(raw) : 50;
+    const limit = Number.isFinite(parsed) ? parsed : 50;
+    return c.json({
+      events: listRecentEvents(db, limit).map((e) => ({
+        id: e.id,
+        requestId: e.request_id,
+        kind: e.kind,
+        message: e.message,
+        createdAt: e.created_at,
+        title: e.title,
+        type: e.type,
+      })),
+    });
+  });
+
   app.post("/api/requests", async (c) => {
     let body: unknown;
     try {

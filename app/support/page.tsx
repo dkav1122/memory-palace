@@ -47,9 +47,17 @@ export default function SupportPage() {
 				aria-hidden
 				className="fixed inset-0 -z-10 bg-gradient-to-b from-sky-50 via-sky-100 to-sky-200"
 			/>
-			<Link href="/" className="text-sm text-slate-500 hover:text-slate-700">
-				← Back to Memory Palace
-			</Link>
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<Link href="/" className="text-sm text-slate-500 hover:text-slate-700">
+					← Back to Memory Palace
+				</Link>
+				<Link
+					href="/support/board"
+					className="text-sm font-semibold text-emerald-700 hover:text-emerald-600"
+				>
+					View pipeline board →
+				</Link>
+			</div>
 			<header className="mt-2 mb-8">
 				<h1 className="text-4xl font-bold tracking-tight text-sky-950">
 					Support

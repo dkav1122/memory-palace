@@ -306,3 +306,72 @@ export function listQueue(db: Database.Database): QueueRow[] {
     )
     .all() as QueueRow[];
 }
+
+/** Open pipeline statuses for the ops board (excludes terminal + rejected). */
+export const OPEN_BOARD_STATUSES: InternalStatus[] = [
+  "submitted",
+  "triaging",
+  "triaged",
+  "ready",
+  "executing",
+];
+
+export interface BoardRow {
+  request_id: string;
+  type: RequestRecord["type"];
+  title: string;
+  source: RequestRecord["source"];
+  status: InternalStatus;
+  score: number | null;
+  score_explanation: string | null;
+  jira_issue_key: string | null;
+  pr_url: string | null;
+  attempts: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Ops board list: open statuses by default; pass includeTerminal to also show
+ * pr_ready / failed (still excludes rejected).
+ */
+export function listBoard(db: Database.Database, includeTerminal = false): BoardRow[] {
+  const statuses: InternalStatus[] = includeTerminal
+    ? [...OPEN_BOARD_STATUSES, "pr_ready", "failed"]
+    : OPEN_BOARD_STATUSES;
+  const placeholders = statuses.map(() => "?").join(", ");
+  return db
+    .prepare(
+      `SELECT t.request_id, r.type, r.title, r.source, t.status, t.score, t.score_explanation,
+              t.jira_issue_key, t.pr_url, t.attempts, r.created_at, t.updated_at
+       FROM tickets t
+       JOIN requests r ON r.id = t.request_id
+       WHERE t.status IN (${placeholders})
+       ORDER BY t.updated_at DESC, r.created_at DESC`,
+    )
+    .all(...statuses) as BoardRow[];
+}
+
+export interface RecentEventRow {
+  id: number;
+  request_id: string;
+  kind: string;
+  message: string;
+  created_at: string;
+  title: string;
+  type: RequestRecord["type"];
+}
+
+/** Global activity feed for the ops board (newest first). */
+export function listRecentEvents(db: Database.Database, limit = 50): RecentEventRow[] {
+  const capped = Math.max(1, Math.min(200, Math.floor(limit)));
+  return db
+    .prepare(
+      `SELECT e.id, e.request_id, e.kind, e.message, e.created_at, r.title, r.type
+       FROM events e
+       JOIN requests r ON r.id = e.request_id
+       ORDER BY e.id DESC
+       LIMIT ?`,
+    )
+    .all(capped) as RecentEventRow[];
+}
