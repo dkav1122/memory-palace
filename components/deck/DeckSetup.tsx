@@ -16,7 +16,7 @@ import { processPhoto } from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
 
 export function DeckSetup() {
-  const { assignments, hydrated, hydrate, setAssignment, removeAssignment } =
+  const { assignments, hydrated, storageError, hydrate, setAssignment, removeAssignment } =
     useGameStore();
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -66,6 +66,13 @@ export function DeckSetup() {
           </Link>
         </div>
       </div>
+
+      {storageError && (
+        <div className="mb-6 rounded-xl border border-amber-800/60 bg-amber-950/40 px-4 py-3 text-sm text-amber-200">
+          Could not load saved photos: {storageError}. You can still assign new
+          cards, but they may not persist in this browser.
+        </div>
+      )}
 
       {SUITS.map((suit) => (
         <section key={suit} className="mb-8">
@@ -155,6 +162,22 @@ export function DeckSetup() {
 
 type ImageSource = "upload" | "generate";
 
+const UPLOADABLE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/bmp",
+]);
+
+function uploadTypeError(file: File): string | null {
+  if (UPLOADABLE_TYPES.has(file.type)) return null;
+  if (/\.heic$|\.heif$/i.test(file.name)) {
+    return "HEIC/HEIF photos are not supported. Export as JPEG or PNG first.";
+  }
+  return `Unsupported image type (${file.type || "unknown"}). Use JPEG, PNG, or WebP.`;
+}
+
 function CardEditor({
   cardId,
   existingName,
@@ -177,6 +200,7 @@ function CardEditor({
   const [description, setDescription] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -282,7 +306,23 @@ function CardEditor({
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(e) => setImageBlob(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) {
+              setImageBlob(null);
+              setSaveError(null);
+              return;
+            }
+            const typeErr = uploadTypeError(file);
+            if (typeErr) {
+              setSaveError(typeErr);
+              setImageBlob(null);
+              e.target.value = "";
+              return;
+            }
+            setSaveError(null);
+            setImageBlob(file);
+          }}
         />
 
         {source === "generate" && (
@@ -322,13 +362,20 @@ function CardEditor({
           autoFocus
         />
 
+        {saveError && (
+          <p className="mb-3 text-xs text-red-400">{saveError}</p>
+        )}
+
         <div className="flex gap-2">
           <button
             disabled={!canSave || saving}
             onClick={async () => {
               setSaving(true);
+              setSaveError(null);
               try {
                 await onSave(name.trim(), image);
+              } catch (err) {
+                setSaveError(err instanceof Error ? err.message : String(err));
               } finally {
                 setSaving(false);
               }
