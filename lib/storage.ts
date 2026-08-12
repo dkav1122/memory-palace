@@ -74,6 +74,7 @@ export async function processPhoto(file: Blob, size = 512): Promise<Blob> {
 export interface RunRecord {
   ts: number;
   deckSize: number;
+  palaceId?: string;
   mode: "easy" | "hard";
   correct: number;
   total: number;
