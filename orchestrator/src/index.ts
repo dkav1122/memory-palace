@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { loadConfig, loadCursorApiKey, loadJiraCredentials } from "./config.js";
 import { openDb } from "./db.js";
+import { createExecutionWorker } from "./execute.js";
 import { JiraClient } from "./jira.js";
 import { createPrioritizeService } from "./prioritize.js";
 import { registerRoutes } from "./routes.js";
@@ -12,8 +13,10 @@ import { createTriageWorker } from "./triage.js";
 const config = loadConfig();
 const db = openDb();
 const jira = new JiraClient(config, loadJiraCredentials());
-const triage = createTriageWorker({ db, config, jira, cursorApiKey: loadCursorApiKey() });
+const cursorApiKey = loadCursorApiKey();
+const triage = createTriageWorker({ db, config, jira, cursorApiKey });
 const prioritize = createPrioritizeService({ db, config, jira });
+const execute = createExecutionWorker({ db, config, jira, cursorApiKey });
 const startedAt = Date.now();
 
 const app = new Hono();
@@ -42,7 +45,7 @@ const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[orchestrator] API listening on http://localhost:${info.port}`);
 });
 
-const stopReconciler = startReconciler(db, config, triage, prioritize);
+const stopReconciler = startReconciler(db, config, triage, prioritize, execute);
 
 function shutdown(signal: string) {
   console.log(`[orchestrator] ${signal} received, shutting down`);

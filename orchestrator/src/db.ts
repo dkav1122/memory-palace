@@ -6,7 +6,8 @@ import type { EventRecord, InternalStatus, RequestRecord, TicketRecord } from ".
 
 const dataDir = resolve(dirname(fileURLToPath(import.meta.url)), "..", "data");
 
-const SCHEMA = `
+/** Exported for tests and validation scripts that build throwaway databases. */
+export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS requests (
   id             TEXT PRIMARY KEY,
   type           TEXT NOT NULL CHECK (type IN ('bug','incident','feature')),
@@ -179,6 +180,13 @@ export function setTicketTriaged(
   ).run(triageJson, requestId);
 }
 
+/** Zero the attempt counter — called when a ticket is promoted to 'ready' so execution retries start fresh. */
+export function resetTicketAttempts(db: Database.Database, requestId: string): void {
+  db.prepare(
+    "UPDATE tickets SET attempts = 0, updated_at = datetime('now') WHERE request_id = ?",
+  ).run(requestId);
+}
+
 /** Increment the attempt counter and return the new value. */
 export function incrementTicketAttempts(db: Database.Database, requestId: string): number {
   db.prepare(
@@ -246,6 +254,32 @@ export function listTriagedForPrioritization(db: Database.Database): TriagedForP
        ORDER BY (t.score IS NULL), t.score DESC, r.created_at ASC`,
     )
     .all() as TriagedForPrioritization[];
+}
+
+/** Terminal success for execution: PR opened, awaiting human review. */
+export function setTicketPrReady(db: Database.Database, requestId: string, prUrl: string): void {
+  db.prepare(
+    "UPDATE tickets SET status = 'pr_ready', pr_url = ?, updated_at = datetime('now') WHERE request_id = ?",
+  ).run(prUrl, requestId);
+}
+
+export interface ReadyForExecutionRow {
+  request_id: string;
+  jira_issue_key: string | null;
+  triage_json: string | null;
+  score: number | null;
+}
+
+/** Ready tickets, highest score first (nulls last), for the execution worker to claim. */
+export function listReadyForExecution(db: Database.Database): ReadyForExecutionRow[] {
+  return db
+    .prepare(
+      `SELECT request_id, jira_issue_key, triage_json, score
+       FROM tickets
+       WHERE status = 'ready'
+       ORDER BY (score IS NULL), score DESC, updated_at ASC`,
+    )
+    .all() as ReadyForExecutionRow[];
 }
 
 export interface QueueRow {

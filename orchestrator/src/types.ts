@@ -63,7 +63,14 @@ export interface WorkflowConfig {
     statusMap: Partial<Record<InternalStatus, JiraStatusMapping>>;
   };
   reddit: { subreddit: string | null };
-  execution: { wipLimit: number };
+  execution: {
+    /** Max tickets in 'ready' + 'executing'; backpressure holds the rest in Triaged. */
+    wipLimit: number;
+    /** Every execution failure returns the ticket to 'ready'; retried up to this many times. */
+    maxAttempts: number;
+    /** Tickets stuck in 'executing' longer than this are recovered by the reconciler. */
+    stuckAfterMinutes: number;
+  };
   triage: {
     /** Startup failures (CursorAgentError) are retried up to this many times. */
     maxAttempts: number;

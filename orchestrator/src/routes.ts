@@ -144,6 +144,7 @@ export function registerRoutes(app: Hono, { db, config, triage }: RouteDeps): vo
         jiraUrl: ticket.jira_issue_key ? `${jiraBase}/browse/${ticket.jira_issue_key}` : null,
         score: ticket.score,
         scoreExplanation: ticket.score_explanation,
+        prUrl: ticket.pr_url,
         updatedAt: ticket.updated_at,
       },
       events: listEvents(db, id).map((e) => ({

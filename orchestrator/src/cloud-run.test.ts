@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isStreamLossError } from "./triage.js";
+import { isStreamLossError } from "./cloud-run.js";
 
 test("isStreamLossError matches known stream-loss messages", () => {
   assert.equal(isStreamLossError("Run stream is no longer available"), true);

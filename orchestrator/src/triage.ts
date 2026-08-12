@@ -2,6 +2,7 @@ import { Agent, CursorAgentError } from "@cursor/sdk";
 import type { Run, RunResult } from "@cursor/sdk";
 import type Database from "better-sqlite3";
 import { extractAssessment, type TriageAssessment } from "./assessment.js";
+import { formatRunFailure, isStreamLossResult, waitForRunResult } from "./cloud-run.js";
 import {
   addEvent,
   claimTicket,
@@ -17,25 +18,6 @@ import {
 } from "./db.js";
 import type { JiraClient } from "./jira.js";
 import type { RequestRecord, WorkflowConfig } from "./types.js";
-
-/** Client stream disconnects — cloud run may still finish successfully. */
-export function isStreamLossError(message: string | undefined | null): boolean {
-  if (!message) return false;
-  const m = message.toLowerCase();
-  return (
-    m.includes("stream is no longer available") ||
-    m.includes("stream_expired") ||
-    m.includes("stream expired")
-  );
-}
-
-function isStreamLossResult(result: RunResult): boolean {
-  return result.status === "error" && isStreamLossError(result.error?.message);
-}
-
-function formatRunFailure(result: RunResult): string {
-  return `run ${result.id} ended with status "${result.status}": ${result.error?.message ?? "no error detail"}`;
-}
 
 export interface TriageWorkerDeps {
   db: Database.Database;
@@ -297,7 +279,7 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
         runId: run.id,
       });
 
-      const result = await waitForRunResult(run, agent.agentId, request.id);
+      const result = await waitForTriageRun(run, agent.agentId, request.id);
       if (isStreamLossResult(result)) {
         outcome = { kind: "stream_lost", detail: formatRunFailure(result) };
       } else if (result.status !== "finished") {
@@ -314,7 +296,7 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
             agentId: agent.agentId,
             runId: retryRun.id,
           });
-          const retryResult = await waitForRunResult(retryRun, agent.agentId, request.id);
+          const retryResult = await waitForTriageRun(retryRun, agent.agentId, request.id);
           if (isStreamLossResult(retryResult)) {
             outcome = { kind: "stream_lost", detail: formatRunFailure(retryResult) };
           } else if (retryResult.status === "finished") {
@@ -367,34 +349,20 @@ export function createTriageWorker({ db, config, jira, cursorApiKey }: TriageWor
     }
   }
 
-  /**
-   * Wait for a run; on stream-loss, rehydrate the same cloud run via Agent.getRun
-   * once (do not call stream()). Caller treats remaining stream-loss as retryable.
-   */
-  async function waitForRunResult(run: Run, agentId: string, requestId: string): Promise<RunResult> {
-    const result = await run.wait();
-    if (!isStreamLossResult(result)) return result;
-
-    console.warn(
-      `[triage] ${requestId} stream lost on ${run.id}; rehydrating via Agent.getRun`,
-    );
-    addEvent(db, requestId, "error", "Run stream lost — rehydrating same cloud run", {
+  /** Shared rehydrate-once wait, with the triage timeline event on stream loss. */
+  function waitForTriageRun(run: Run, agentId: string, requestId: string): Promise<RunResult> {
+    return waitForRunResult(run, {
       agentId,
-      runId: run.id,
-      detail: result.error?.message,
+      apiKey: cursorApiKey,
+      logLabel: `[triage] ${requestId}`,
+      onStreamLoss: (detail) => {
+        addEvent(db, requestId, "error", "Run stream lost — rehydrating same cloud run", {
+          agentId,
+          runId: run.id,
+          detail,
+        });
+      },
     });
-
-    try {
-      const revived = await Agent.getRun(run.id, {
-        runtime: "cloud",
-        agentId,
-        apiKey: cursorApiKey,
-      });
-      return await revived.wait();
-    } catch (err) {
-      console.error(`[triage] ${requestId} rehydrate failed for ${run.id}:`, err);
-      return result;
-    }
   }
 
   async function completeTriage(
