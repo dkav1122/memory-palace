@@ -11,6 +11,7 @@ import {
   countTicketsByStatus,
   getLastEventOfKind,
   listTriagedForPrioritization,
+  resetTicketAttempts,
   setTicketScore,
 } from "./db.js";
 import type { JiraClient } from "./jira.js";
@@ -109,6 +110,8 @@ export function createPrioritizeService({ db, config, jira }: PrioritizeDeps): P
         if (slots <= 0) break;
         if (!claimTicket(db, row.request_id, "triaged", "ready")) continue;
         slots -= 1;
+        // attempts is shared with triage retries — execution attempts start fresh.
+        resetTicketAttempts(db, row.request_id);
         addEvent(
           db,
           row.request_id,

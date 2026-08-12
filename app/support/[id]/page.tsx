@@ -112,16 +112,28 @@ export default function SupportRequestPage() {
 										timeline.ticket.status}
 								</div>
 							</div>
-							{timeline.ticket.jiraUrl && (
-								<a
-									href={timeline.ticket.jiraUrl}
-									target="_blank"
-									rel="noreferrer"
-									className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-800 transition hover:border-sky-400"
-								>
-									{timeline.ticket.jiraIssueKey} in Jira ↗
-								</a>
-							)}
+							<div className="flex items-center gap-2">
+								{timeline.ticket.prUrl && (
+									<a
+										href={timeline.ticket.prUrl}
+										target="_blank"
+										rel="noreferrer"
+										className="rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-sm font-semibold text-emerald-800 transition hover:border-emerald-500"
+									>
+										View PR ↗
+									</a>
+								)}
+								{timeline.ticket.jiraUrl && (
+									<a
+										href={timeline.ticket.jiraUrl}
+										target="_blank"
+										rel="noreferrer"
+										className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-800 transition hover:border-sky-400"
+									>
+										{timeline.ticket.jiraIssueKey} in Jira ↗
+									</a>
+								)}
+							</div>
 						</div>
 					</div>
 

@@ -115,7 +115,7 @@ async function main() {
   // Force WIP=1 for the validation assertion regardless of local config edits.
   const config: WorkflowConfig = {
     ...baseConfig,
-    execution: { wipLimit: 1 },
+    execution: { ...baseConfig.execution, wipLimit: 1 },
   };
   const jira = new JiraClient(config, loadJiraCredentials());
   const { db, path: dbPath } = openTempDb();

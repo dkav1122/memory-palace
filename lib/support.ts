@@ -37,6 +37,7 @@ export interface RequestTimeline {
 		status: string;
 		jiraIssueKey: string | null;
 		jiraUrl: string | null;
+		prUrl: string | null;
 		updatedAt: string;
 	};
 	events: Array<{
