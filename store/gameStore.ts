@@ -26,6 +26,7 @@ interface GameState {
 	// deck setup
 	assignments: Record<string, Assignment>;
 	hydrated: boolean;
+	storageError: string | null;
 	hydrate: () => Promise<void>;
 	setAssignment: (cardId: string, name: string, blob: Blob) => Promise<void>;
 	removeAssignment: (cardId: string) => Promise<void>;
@@ -57,17 +58,29 @@ export const useGameStore = create<GameState>()(
 		(setState, getState) => ({
 			assignments: {},
 			hydrated: false,
+			storageError: null,
 
 			hydrate: async () => {
 				if (getState().hydrated) return;
 				if (hydrating) return hydrating;
 				hydrating = (async () => {
-					const stored = await loadAssignments();
-					const assignments: Record<string, Assignment> = {};
-					for (const [cardId, { name, blob }] of Object.entries(stored)) {
-						assignments[cardId] = { name, url: URL.createObjectURL(blob) };
+					try {
+						const stored = await loadAssignments();
+						const assignments: Record<string, Assignment> = {};
+						for (const [cardId, { name, blob }] of Object.entries(stored)) {
+							assignments[cardId] = { name, url: URL.createObjectURL(blob) };
+						}
+						setState({ assignments, hydrated: true, storageError: null });
+					} catch (err) {
+						setState({
+							assignments: {},
+							hydrated: true,
+							storageError:
+								err instanceof Error
+									? err.message
+									: "Could not load saved photos (IndexedDB unavailable).",
+						});
 					}
-					setState({ assignments, hydrated: true });
 				})();
 				return hydrating;
 			},
