@@ -1,18 +1,48 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
+import { RaceLobby } from "@/components/game/RaceLobby";
 import { formatMs } from "@/components/palace/Hud";
+import { decodeRaceLink, missingAssignments } from "@/lib/race";
 import { EMPTY_HISTORY, loadHistory, type RunRecord } from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
 
 const noopSubscribe = () => () => {};
 
 export default function HomePage() {
+	return (
+		<Suspense
+			fallback={
+				<main className="mx-auto flex min-h-dvh max-w-4xl items-center justify-center px-6 py-14 text-slate-600">
+					Loading…
+				</main>
+			}
+		>
+			<HomePageContent />
+		</Suspense>
+	);
+}
+
+function HomePageContent() {
 	const router = useRouter();
-	const { assignments, hydrated, hydrate, shuffle } = useGameStore();
+	const searchParams = useSearchParams();
+	const {
+		assignments,
+		hydrated,
+		hydrate,
+		shuffle,
+		playerName,
+		setPlayerName,
+		createRaceRoom,
+		joinRaceRoom,
+		loadSharedOrder,
+		raceRoomCode,
+		raceSeed,
+		order,
+	} = useGameStore();
 	const history = useSyncExternalStore(
 		noopSubscribe,
 		loadHistory,
@@ -23,8 +53,25 @@ export default function HomePage() {
 		hydrate();
 	}, [hydrate]);
 
+	useEffect(() => {
+		if (!hydrated) return;
+		const room = searchParams.get("room");
+		if (room) {
+			void joinRaceRoom(room);
+			return;
+		}
+		const race = searchParams.get("race");
+		if (race) {
+			const params = decodeRaceLink(race);
+			if (params) loadSharedOrder(params.seed, params.deckSize);
+		}
+	}, [hydrated, searchParams, joinRaceRoom, loadSharedOrder]);
+
 	const assignedCount = Object.keys(assignments).length;
 	const best = bestRuns(history);
+	const sharedRaceReady =
+		raceRoomCode != null || (raceSeed != null && order.length > 0);
+	const missingRaceCards = missingAssignments(order, assignments);
 
 	return (
 		<main className="relative mx-auto flex min-h-dvh max-w-4xl flex-col px-6 py-14 text-slate-900">
@@ -93,6 +140,43 @@ export default function HomePage() {
 					</div>
 				</div>
 			</div>
+
+			{/* race a friend */}
+			<RaceLobby
+				assignedCount={assignedCount}
+				playerName={playerName}
+				onNameChange={setPlayerName}
+				onCreateRoom={createRaceRoom}
+				onJoinRoom={joinRaceRoom}
+			/>
+
+			{sharedRaceReady && hydrated && (
+				<div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-900">
+					<div className="font-semibold">
+						{raceRoomCode
+							? `Race room ${raceRoomCode} is ready`
+							: "Shared race deck loaded"}
+					</div>
+					<p className="mt-1 text-emerald-800">
+						Walk the palace to memorize, then enter game mode to race.
+					</p>
+					{missingRaceCards.length === 0 ? (
+						<button
+							type="button"
+							onClick={() => router.push("/palace")}
+							className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-500"
+						>
+							Start memorization walk →
+						</button>
+					) : (
+						<p className="mt-2 text-amber-800">
+							Assign photos for {missingRaceCards.length} more card
+							{missingRaceCards.length === 1 ? "" : "s"} in this shuffle before
+							you can walk.
+						</p>
+					)}
+				</div>
+			)}
 
 			{/* support portal */}
 			<Link

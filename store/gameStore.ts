@@ -1,5 +1,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+	buildSharedOrder,
+	generatePlayerId,
+	randomSeed,
+	type RaceRoom,
+} from "@/lib/race";
+import { opponentFor } from "@/lib/raceRooms";
 import { shuffleArray } from "@/lib/rng";
 import {
 	deleteAssignment,
@@ -20,6 +27,15 @@ export type QuizMode = "easy" | "hard";
 export interface QuizAnswer {
 	choice: string; // cardId chosen
 	correct: boolean;
+}
+
+export interface OpponentProgress {
+	name: string;
+	index: number;
+	correct: number;
+	total: number;
+	finished: boolean;
+	timeMs: number | null;
 }
 
 interface GameState {
@@ -48,9 +64,39 @@ interface GameState {
 	startQuiz: (mode: QuizMode) => void;
 	answer: (choice: string) => void;
 	resetQuiz: () => void;
+
+	// multiplayer / race
+	raceSeed: number | null;
+	raceRoomCode: string | null;
+	playerId: string;
+	playerName: string;
+	opponent: OpponentProgress | null;
+	setPlayerName: (name: string) => void;
+	loadSharedOrder: (seed: number, size: DeckSize) => void;
+	createRaceRoom: (size: DeckSize) => Promise<string | null>;
+	joinRaceRoom: (code: string) => Promise<boolean>;
+	syncRaceRoom: () => Promise<void>;
+	reportRaceProgress: () => Promise<void>;
+	leaveRaceRoom: () => Promise<void>;
 }
 
 let hydrating: Promise<void> | null = null;
+
+function opponentFromRoom(
+	room: RaceRoom,
+	selfId: string,
+): OpponentProgress | null {
+	const player = opponentFor(room, selfId);
+	if (!player) return null;
+	return {
+		name: player.name,
+		index: player.index,
+		correct: player.correct,
+		total: player.total,
+		finished: player.finished,
+		timeMs: player.timeMs,
+	};
+}
 
 export const useGameStore = create<GameState>()(
 	persist(
@@ -164,6 +210,175 @@ export const useGameStore = create<GameState>()(
 					quizFinishedAt: null,
 					index: 0,
 				}),
+
+			raceSeed: null,
+			raceRoomCode: null,
+			playerId:
+				typeof window !== "undefined"
+					? (localStorage.getItem("mp:playerId") ?? generatePlayerId())
+					: generatePlayerId(),
+			playerName:
+				typeof window !== "undefined"
+					? (localStorage.getItem("mp:playerName") ?? "Player")
+					: "Player",
+			opponent: null,
+
+			setPlayerName: name => {
+				const trimmed = name.trim() || "Player";
+				if (typeof window !== "undefined") {
+					localStorage.setItem("mp:playerName", trimmed);
+				}
+				setState({ playerName: trimmed });
+			},
+
+			loadSharedOrder: (seed, size) => {
+				const order = buildSharedOrder(size, seed);
+				setState({
+					order,
+					deckSize: size,
+					raceSeed: seed,
+					index: 0,
+					walkStartedAt: Date.now(),
+					answers: {},
+					quizStartedAt: null,
+					quizFinishedAt: null,
+				});
+			},
+
+			createRaceRoom: async size => {
+				const { playerId, playerName } = getState();
+				if (typeof window !== "undefined") {
+					localStorage.setItem("mp:playerId", playerId);
+				}
+				const seed = randomSeed();
+				getState().loadSharedOrder(seed, size);
+				try {
+					const res = await fetch("/api/race", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({
+							hostId: playerId,
+							hostName: playerName,
+							deckSize: size,
+							seed,
+						}),
+					});
+					if (!res.ok) return null;
+					const data = (await res.json()) as { room: RaceRoom };
+					setState({
+						raceRoomCode: data.room.code,
+						opponent: opponentFromRoom(data.room, playerId),
+					});
+					return data.room.code;
+				} catch {
+					return null;
+				}
+			},
+
+			joinRaceRoom: async code => {
+				const { playerId, playerName } = getState();
+				if (typeof window !== "undefined") {
+					localStorage.setItem("mp:playerId", playerId);
+				}
+				try {
+					const res = await fetch(`/api/race/${encodeURIComponent(code)}`, {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({
+							action: "join",
+							playerId,
+							name: playerName,
+						}),
+					});
+					if (!res.ok) return false;
+					const data = (await res.json()) as { room: RaceRoom };
+					getState().loadSharedOrder(data.room.seed, data.room.deckSize);
+					setState({
+						raceRoomCode: data.room.code,
+						opponent: opponentFromRoom(data.room, playerId),
+					});
+					return true;
+				} catch {
+					return false;
+				}
+			},
+
+			syncRaceRoom: async () => {
+				const { raceRoomCode, playerId } = getState();
+				if (!raceRoomCode) return;
+				try {
+					const res = await fetch(
+						`/api/race/${encodeURIComponent(raceRoomCode)}`,
+					);
+					if (!res.ok) return;
+					const data = (await res.json()) as { room: RaceRoom };
+					setState({ opponent: opponentFromRoom(data.room, playerId) });
+				} catch {
+					// ignore transient network errors during polling
+				}
+			},
+
+			reportRaceProgress: async () => {
+				const {
+					raceRoomCode,
+					playerId,
+					playerName,
+					index,
+					answers,
+					order,
+					quizMode,
+					quizStartedAt,
+					quizFinishedAt,
+				} = getState();
+				if (!raceRoomCode) return;
+				const correct = Object.values(answers).filter(a => a.correct).length;
+				const finished = Object.keys(answers).length === order.length;
+				const timeMs =
+					finished && quizStartedAt && quizFinishedAt
+						? quizFinishedAt - quizStartedAt
+						: null;
+				try {
+					const res = await fetch(
+						`/api/race/${encodeURIComponent(raceRoomCode)}`,
+						{
+							method: "POST",
+							headers: { "content-type": "application/json" },
+							body: JSON.stringify({
+								action: "sync",
+								playerId,
+								name: playerName,
+								index,
+								correct,
+								total: order.length,
+								finished,
+								timeMs,
+								mode: quizStartedAt ? quizMode : undefined,
+							}),
+						},
+					);
+					if (!res.ok) return;
+					const data = (await res.json()) as { room: RaceRoom };
+					setState({ opponent: opponentFromRoom(data.room, playerId) });
+				} catch {
+					// ignore transient network errors during sync
+				}
+			},
+
+			leaveRaceRoom: async () => {
+				const { raceRoomCode, playerId } = getState();
+				if (raceRoomCode) {
+					try {
+						await fetch(`/api/race/${encodeURIComponent(raceRoomCode)}`, {
+							method: "POST",
+							headers: { "content-type": "application/json" },
+							body: JSON.stringify({ action: "leave", playerId }),
+						});
+					} catch {
+						// best-effort cleanup
+					}
+				}
+				setState({ raceRoomCode: null, raceSeed: null, opponent: null });
+			},
 		}),
 		{
 			name: "mp:game",
@@ -175,6 +390,10 @@ export const useGameStore = create<GameState>()(
 				deckSize: state.deckSize,
 				quizMode: state.quizMode,
 				walkStartedAt: state.walkStartedAt,
+				raceSeed: state.raceSeed,
+				raceRoomCode: state.raceRoomCode,
+				playerId: state.playerId,
+				playerName: state.playerName,
 			}),
 		},
 	),

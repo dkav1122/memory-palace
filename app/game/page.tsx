@@ -4,6 +4,7 @@ import { useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CardChip } from "@/components/CardChip";
+import { OpponentHud } from "@/components/game/OpponentHud";
 import { QuizOverlay } from "@/components/game/QuizOverlay";
 import { formatMs, HudPill, Timer } from "@/components/palace/Hud";
 import { PalaceScene } from "@/components/palace/PalaceScene";
@@ -28,11 +29,36 @@ export default function GamePage() {
 		answer,
 		shuffle,
 		deckSize,
+		raceRoomCode,
+		opponent,
+		syncRaceRoom,
+		reportRaceProgress,
 	} = useGameStore();
 
 	useEffect(() => {
 		hydrate();
 	}, [hydrate]);
+
+	const quizActive = quizStartedAt !== null;
+	const done =
+		quizActive && Object.keys(answers).length === order.length;
+
+	useEffect(() => {
+		if (!raceRoomCode || !quizActive) return;
+		void reportRaceProgress();
+		const poll = setInterval(() => {
+			void syncRaceRoom();
+		}, 2000);
+		return () => clearInterval(poll);
+	}, [
+		raceRoomCode,
+		quizActive,
+		index,
+		answers,
+		done,
+		syncRaceRoom,
+		reportRaceProgress,
+	]);
 
 	const advance = useCallback(() => {
 		const state = useGameStore.getState();
@@ -70,10 +96,6 @@ export default function GamePage() {
 		);
 	}
 
-	const quizActive = quizStartedAt !== null;
-	const done =
-		quizActive && Object.keys(answers).length === order.length;
-
 	const billboards = order.map((cardId, i) => ({
 		cardId,
 		url: assignments[cardId].url,
@@ -81,6 +103,25 @@ export default function GamePage() {
 	}));
 
 	const correctCount = Object.values(answers).filter(a => a.correct).length;
+	const myTimeMs =
+		quizFinishedAt && quizStartedAt ? quizFinishedAt - quizStartedAt : null;
+
+	let raceOutcome: "win" | "lose" | "tie" | "waiting" | null = null;
+	if (raceRoomCode && done && myTimeMs != null && opponent) {
+		if (!opponent.finished || opponent.timeMs == null) {
+			raceOutcome = "waiting";
+		} else if (correctCount > opponent.correct) {
+			raceOutcome = "win";
+		} else if (correctCount < opponent.correct) {
+			raceOutcome = "lose";
+		} else if (myTimeMs < opponent.timeMs) {
+			raceOutcome = "win";
+		} else if (myTimeMs > opponent.timeMs) {
+			raceOutcome = "lose";
+		} else {
+			raceOutcome = "tie";
+		}
+	}
 
 	return (
 		<div className="relative h-dvh w-full overflow-hidden">
@@ -100,6 +141,9 @@ export default function GamePage() {
 							{Math.min(index + 1, order.length)} / {order.length}
 						</HudPill>
 					)}
+					{raceRoomCode && opponent && (
+						<OpponentHud opponent={opponent} roomCode={raceRoomCode} />
+					)}
 				</div>
 				{quizActive && !done && (
 					<HudPill>
@@ -113,6 +157,11 @@ export default function GamePage() {
 				<div className="absolute inset-0 flex items-center justify-center bg-black/60 p-6">
 					<div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-8 text-center">
 						<h1 className="text-2xl font-bold">Game mode</h1>
+						{raceRoomCode && (
+							<p className="mt-2 text-sm font-semibold text-amber-400">
+								Live race · room {raceRoomCode}
+							</p>
+						)}
 						<p className="mt-2 text-sm text-zinc-400">
 							Walk the route in order. At each stop, pick what belongs there
 							from 4 choices. Scored on accuracy and time.
@@ -179,6 +228,48 @@ export default function GamePage() {
 								</div>
 							</div>
 						</div>
+
+						{raceRoomCode && opponent && (
+							<div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-950/30 p-4 text-sm">
+								<div className="font-semibold text-amber-200">
+									{raceOutcome === "waiting"
+										? "Waiting for opponent to finish…"
+										: raceOutcome === "win"
+											? "You won the race!"
+											: raceOutcome === "lose"
+												? `${opponent.name} won the race`
+												: raceOutcome === "tie"
+													? "Race tied!"
+													: "Race results"}
+								</div>
+								<div className="mt-2 grid grid-cols-2 gap-2 text-center text-xs">
+									<div className="rounded-lg border border-zinc-700 bg-zinc-900/60 p-2">
+										<div className="text-zinc-400">You</div>
+										<div className="mt-1 font-bold">
+											{correctCount}/{order.length}
+										</div>
+										{myTimeMs != null && (
+											<div className="font-mono text-zinc-300">
+												{formatMs(myTimeMs)}
+											</div>
+										)}
+									</div>
+									<div className="rounded-lg border border-zinc-700 bg-zinc-900/60 p-2">
+										<div className="text-zinc-400">{opponent.name}</div>
+										<div className="mt-1 font-bold">
+											{opponent.correct}/{opponent.total}
+										</div>
+										{opponent.timeMs != null ? (
+											<div className="font-mono text-zinc-300">
+												{formatMs(opponent.timeMs)}
+											</div>
+										) : (
+											<div className="text-zinc-500">Still racing…</div>
+										)}
+									</div>
+								</div>
+							</div>
+						)}
 
 						{correctCount < order.length && (
 							<div className="mt-5">
