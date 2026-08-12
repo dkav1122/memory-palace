@@ -55,8 +55,9 @@ export default function SupportPage() {
 					Support
 				</h1>
 				<p className="mt-2 text-slate-600">
-					Report a bug, an incident, or request a feature. Your report is filed
-					verbatim and you can track its progress on a live timeline.
+					Report a bug, an incident, or request a feature. No login or account is
+					needed. Your report is filed verbatim and you can track its progress on
+					a live timeline.
 				</p>
 			</header>
 

@@ -179,8 +179,8 @@ export default function HomePage() {
 
 			<footer className="mt-auto pt-12 text-center text-xs text-slate-500">
 				Based on the method of loci — see{" "}
-				<span className="italic">Moonwalking with Einstein</span>. Everything is
-				stored locally in your browser.
+				<span className="italic">Moonwalking with Einstein</span>. No account or
+				login required — everything is stored locally in your browser.
 			</footer>
 		</main>
 	);
