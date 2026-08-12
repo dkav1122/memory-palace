@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { shuffleArray } from "@/lib/rng";
+import { DEFAULT_PALACE_ID, isPalaceId, type PalaceId } from "@/lib/palaces";
 import {
 	deleteAssignment,
 	loadAssignments,
@@ -33,6 +34,8 @@ interface GameState {
 	// walk / shuffle
 	order: string[]; // shuffled cardIds for this run
 	deckSize: DeckSize;
+	palaceId: PalaceId;
+	setPalaceId: (id: PalaceId) => void;
 	index: number;
 	walkStartedAt: number | null;
 	shuffle: (size: DeckSize) => void;
@@ -97,6 +100,9 @@ export const useGameStore = create<GameState>()(
 
 			order: [],
 			deckSize: 10,
+			palaceId: DEFAULT_PALACE_ID,
+			setPalaceId: id => setState({ palaceId: id }),
+
 			index: 0,
 			walkStartedAt: null,
 
@@ -149,6 +155,7 @@ export const useGameStore = create<GameState>()(
 					saveRun({
 						ts: Date.now(),
 						deckSize,
+						palaceId: getState().palaceId,
 						mode: quizMode,
 						correct: Object.values(newAnswers).filter(a => a.correct).length,
 						total: order.length,
@@ -173,9 +180,18 @@ export const useGameStore = create<GameState>()(
 			partialize: state => ({
 				order: state.order,
 				deckSize: state.deckSize,
+				palaceId: state.palaceId,
 				quizMode: state.quizMode,
 				walkStartedAt: state.walkStartedAt,
 			}),
+			merge: (persisted, current) => {
+				const stored = persisted as Partial<GameState> | undefined;
+				const palaceId =
+					stored?.palaceId && isPalaceId(stored.palaceId)
+						? stored.palaceId
+						: DEFAULT_PALACE_ID;
+				return { ...current, ...stored, palaceId };
+			},
 		},
 	),
 );

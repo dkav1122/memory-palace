@@ -4,7 +4,9 @@ import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
+import { PalacePicker } from "@/components/PalacePicker";
 import { formatMs } from "@/components/palace/Hud";
+import { getPalace, isPalaceId } from "@/lib/palaces";
 import { EMPTY_HISTORY, loadHistory, type RunRecord } from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
 
@@ -12,7 +14,8 @@ const noopSubscribe = () => () => {};
 
 export default function HomePage() {
 	const router = useRouter();
-	const { assignments, hydrated, hydrate, shuffle } = useGameStore();
+	const { assignments, hydrated, hydrate, shuffle, palaceId, setPalaceId } =
+		useGameStore();
 	const history = useSyncExternalStore(
 		noopSubscribe,
 		loadHistory,
@@ -74,21 +77,25 @@ export default function HomePage() {
 					</div>
 					<h2 className="mt-1 text-xl font-bold text-sky-950">Shuffle & walk</h2>
 					<p className="mt-2 text-sm text-slate-600">
-						Shuffle the deck, then walk the palace and memorize the order.
+						Shuffle the deck, pick a palace theme, then walk and memorize the
+						order.
 					</p>
-					<div className="mt-4">
+					<div className="mt-4 space-y-4">
 						{hydrated && assignedCount < 10 ? (
 							<p className="text-sm text-slate-500">
 								Assign at least 10 photos to start.
 							</p>
 						) : (
-							<DeckSizePicker
-								assignedCount={assignedCount}
-								onPick={size => {
-									shuffle(size);
-									router.push("/palace");
-								}}
-							/>
+							<>
+								<PalacePicker value={palaceId} onChange={setPalaceId} />
+								<DeckSizePicker
+									assignedCount={assignedCount}
+									onPick={size => {
+										shuffle(size);
+										router.push("/palace");
+									}}
+								/>
+							</>
 						)}
 					</div>
 				</div>
@@ -157,6 +164,9 @@ export default function HomePage() {
 									</span>
 									<span className="text-slate-600">
 										{run.deckSize} cards · {run.mode}
+										{run.palaceId && isPalaceId(run.palaceId)
+											? ` · ${getPalace(run.palaceId).name}`
+											: ""}
 									</span>
 									<span
 										className={
