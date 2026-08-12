@@ -3,7 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { submitRequest, type SupportRequestType } from "@/lib/support";
+import {
+	containsSensitiveFinancialData,
+	SENSITIVE_DATA_MESSAGE,
+	submitRequest,
+	type SupportRequestType,
+} from "@/lib/support";
 
 const REQUEST_TYPES: Array<{ value: SupportRequestType; label: string; hint: string }> = [
 	{ value: "bug", label: "@bug", hint: "Something is broken" },
@@ -24,6 +29,17 @@ export default function SupportPage() {
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		if (submitting) return;
+		const fields = [
+			title.trim(),
+			description,
+			submitterName.trim(),
+			submitterContact.trim(),
+		];
+		if (fields.some(containsSensitiveFinancialData)) {
+			setError(SENSITIVE_DATA_MESSAGE);
+			return;
+		}
+
 		setSubmitting(true);
 		setError(null);
 		try {
@@ -56,9 +72,18 @@ export default function SupportPage() {
 				</h1>
 				<p className="mt-2 text-slate-600">
 					Report a bug, an incident, or request a feature. Your report is filed
-					verbatim and you can track its progress on a live timeline.
+					verbatim and you can track its progress on a live timeline. Memory
+					Palace does not accept or process credit cards.
 				</p>
 			</header>
+
+			<div
+				role="note"
+				className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+			>
+				<strong className="font-semibold">Privacy notice:</strong>{" "}
+				{SENSITIVE_DATA_MESSAGE}
+			</div>
 
 			<form
 				onSubmit={handleSubmit}
