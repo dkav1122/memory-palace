@@ -31,6 +31,7 @@ import { Landmarks } from "./Landmarks";
 import { PhotoBillboard } from "./PhotoBillboard";
 import { CameraRig } from "./CameraRig";
 import { FitModel } from "./FitModel";
+import { PlayerAvatar, createAvatarPose } from "./PlayerAvatar";
 
 const SUN_DIR = new THREE.Vector3(80, 120, -200).normalize();
 const SUN_DIST = 140;
@@ -302,6 +303,8 @@ export function PalaceScene({
 	billboards: BillboardState[];
 	index: number;
 }) {
+	const avatarPose = useRef(createAvatarPose());
+
 	return (
 		<Canvas
 			shadows
@@ -327,6 +330,7 @@ export function PalaceScene({
 				<GrassTufts />
 				<ScatterTrees />
 				<Landmarks waypoints={WAYPOINTS} />
+				<PlayerAvatar index={index} poseRef={avatarPose} />
 			</Suspense>
 
 			{billboards.map((b, i) => (
@@ -338,7 +342,7 @@ export function PalaceScene({
 				/>
 			))}
 
-			<CameraRig index={index} />
+			<CameraRig index={index} poseRef={avatarPose} />
 
 			<EffectComposer multisampling={4}>
 				<N8AO aoRadius={2} intensity={2.5} distanceFalloff={1} halfRes />
