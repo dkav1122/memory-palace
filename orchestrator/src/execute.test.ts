@@ -95,8 +95,9 @@ test("buildExecutionPrompt carries the report, assessment, and guardrails", () =
   assert.match(prompt, /http:\/\/localhost:3000/);
   assert.match(prompt, /screenshots/);
   assert.match(prompt, /short video/);
-  assert.match(prompt, /Attach those artifacts to the PR/);
-  assert.match(prompt, /Do not commit screenshot or video binaries/);
+  assert.match(prompt, /\/opt\/cursor\/artifacts\//);
+  assert.match(prompt, /never write placeholder text/);
+  assert.match(prompt, /Do not commit screenshot or video\s+binaries/);
 });
 
 // --- handleExecutionFailure: retry-cap behavior against an in-memory DB ---
