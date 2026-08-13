@@ -4,18 +4,22 @@ import { useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { mulberry32 } from "@/lib/rng";
 import type { LandmarkType, Waypoint } from "@/lib/palace";
+import {
+	DEFAULT_PALACE_THEME,
+	THEME_MODEL_ROOTS,
+	type PalaceThemeId,
+} from "@/lib/palaceThemes";
 import { FitModel } from "./FitModel";
 
 /**
  * 13 landmark types built from CC0 glTF models (Kenney nature / hexagon /
  * fantasy-town kits). Each of the 52 waypoints gets one, with seeded cosmetic
  * variation (scale/rotation) so every locus is visually distinct — the
- * player's job is to remember these places.
+ * player's job is to remember these places. City theme remaps the same slots
+ * onto town props so the route stays familiar while the setting changes.
  */
 
-const NATURE = "/models/nature";
-const HEXAGON = "/models/hexagon";
-const TOWN = "/models/town";
+const { NATURE, HEXAGON, TOWN } = THEME_MODEL_ROOTS;
 
 const MODEL_URLS = [
 	`${NATURE}/tree_oak.glb`,
@@ -39,6 +43,8 @@ const MODEL_URLS = [
 	`${HEXAGON}/unit-mill.glb`,
 	`${TOWN}/fountain-round.glb`,
 	`${TOWN}/fountain-center.glb`,
+	`${TOWN}/windmill.glb`,
+	`${TOWN}/blade.glb`,
 ];
 MODEL_URLS.forEach(url => useGLTF.preload(url));
 
@@ -126,7 +132,35 @@ function Flowers() {
 	);
 }
 
-function LandmarkModel({ type }: { type: LandmarkType }) {
+function PlazaFountain() {
+	return (
+		<group>
+			<FitModel url={`${TOWN}/fountain-round.glb`} size={3.2} />
+			<FitModel
+				url={`${TOWN}/fountain-center.glb`}
+				size={1.8}
+				position={[0, 0.35, 0]}
+			/>
+		</group>
+	);
+}
+
+function StreetLamp() {
+	return (
+		<group>
+			<FitModel url={`${TOWN}/blade.glb`} size={3.5} />
+			<pointLight
+				position={[0, 3.2, 0]}
+				color="#ffd6a0"
+				intensity={10}
+				distance={16}
+				decay={2}
+			/>
+		</group>
+	);
+}
+
+function NatureLandmark({ type }: { type: LandmarkType }) {
 	switch (type) {
 		case "oak":
 			return <FitModel url={`${NATURE}/tree_oak.glb`} size={5} />;
@@ -191,7 +225,146 @@ function LandmarkModel({ type }: { type: LandmarkType }) {
 	}
 }
 
-function Landmark({ waypoint }: { waypoint: Waypoint }) {
+/** Same waypoint slots, town/hexagon props — a city reading of the route. */
+function CityLandmark({ type }: { type: LandmarkType }) {
+	switch (type) {
+		case "oak":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={5} />;
+		case "pines":
+			return (
+				<group>
+					<FitModel url={`${HEXAGON}/unit-house.glb`} size={4.5} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.8}
+						position={[3.2, 0, 1.1]}
+						rotation={[0, 1.1, 0]}
+					/>
+					<FitModel
+						url={`${HEXAGON}/unit-mill.glb`}
+						size={5.5}
+						position={[-2.8, 0, 1.6]}
+						rotation={[0, -0.7, 0]}
+					/>
+				</group>
+			);
+		case "boulder":
+			return <PlazaFountain />;
+		case "standingStone":
+			return <StreetLamp />;
+		case "campfire":
+			return <StreetLamp />;
+		case "pond":
+			return <PlazaFountain />;
+		case "cabin":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={5.2} />;
+		case "well":
+			return <PlazaFountain />;
+		case "arch":
+			return <FitModel url={`${NATURE}/statue_ring.glb`} size={4.6} />;
+		case "obelisk":
+			return <FitModel url={`${NATURE}/statue_obelisk.glb`} size={5.5} />;
+		case "flowers":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/plant_bush.glb`} size={1.1} />
+					<FitModel
+						url={`${TOWN}/fountain-center.glb`}
+						size={1.4}
+						position={[0, 0, 0]}
+					/>
+				</group>
+			);
+		case "windmill":
+			return <FitModel url={`${TOWN}/windmill.glb`} size={8} />;
+		case "logpile":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={3.6} />;
+	}
+}
+
+/** Nature landmarks with denser tree clusters for a jungle feel. */
+function JungleLandmark({ type }: { type: LandmarkType }) {
+	switch (type) {
+		case "oak":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/tree_oak.glb`} size={6.5} />
+					<FitModel
+						url={`${NATURE}/tree_oak.glb`}
+						size={4.5}
+						position={[2.4, 0, 1.2]}
+						rotation={[0, 1.4, 0]}
+					/>
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.4}
+						position={[-1.8, 0, 1.5]}
+					/>
+				</group>
+			);
+		case "pines":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/tree_pineTallA_detailed.glb`} size={9} />
+					<FitModel
+						url={`${NATURE}/tree_pineTallB_detailed.glb`}
+						size={7}
+						position={[2.4, 0, 1.1]}
+					/>
+					<FitModel
+						url={`${NATURE}/tree_pineTallA_detailed.glb`}
+						size={8}
+						position={[-2.2, 0, 1.6]}
+						rotation={[0, 2.1, 0]}
+					/>
+					<FitModel
+						url={`${NATURE}/tree_pineTallB_detailed.glb`}
+						size={5.5}
+						position={[0.4, 0, 2.8]}
+						rotation={[0, 0.8, 0]}
+					/>
+				</group>
+			);
+		case "flowers":
+			return (
+				<group>
+					<Flowers />
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.3}
+						position={[1.6, 0, -1.2]}
+					/>
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.1}
+						position={[-1.8, 0, 1.4]}
+					/>
+				</group>
+			);
+		default:
+			return <NatureLandmark type={type} />;
+	}
+}
+
+function LandmarkModel({
+	type,
+	themeId,
+}: {
+	type: LandmarkType;
+	themeId: PalaceThemeId;
+}) {
+	if (themeId === "city") return <CityLandmark type={type} />;
+	if (themeId === "jungle") return <JungleLandmark type={type} />;
+	return <NatureLandmark type={type} />;
+}
+
+function Landmark({
+	waypoint,
+	themeId,
+}: {
+	waypoint: Waypoint;
+	themeId: PalaceThemeId;
+}) {
 	const { landmarkType, seed } = waypoint;
 	const variant = useMemo(() => {
 		const rand = mulberry32(seed);
@@ -207,16 +380,22 @@ function Landmark({ waypoint }: { waypoint: Waypoint }) {
 			rotation={[0, variant.rotation, 0]}
 			scale={variant.scale}
 		>
-			<LandmarkModel type={landmarkType} />
+			<LandmarkModel type={landmarkType} themeId={themeId} />
 		</group>
 	);
 }
 
-export function Landmarks({ waypoints }: { waypoints: Waypoint[] }) {
+export function Landmarks({
+	waypoints,
+	themeId = DEFAULT_PALACE_THEME,
+}: {
+	waypoints: Waypoint[];
+	themeId?: PalaceThemeId;
+}) {
 	return (
 		<>
 			{waypoints.map(w => (
-				<Landmark key={w.index} waypoint={w} />
+				<Landmark key={w.index} waypoint={w} themeId={themeId} />
 			))}
 		</>
 	);

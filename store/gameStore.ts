@@ -2,6 +2,10 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { shuffleArray } from "@/lib/rng";
 import {
+	DEFAULT_PALACE_THEME,
+	type PalaceThemeId,
+} from "@/lib/palaceThemes";
+import {
 	deleteAssignment,
 	loadAssignments,
 	saveAssignment,
@@ -29,6 +33,10 @@ interface GameState {
 	hydrate: () => Promise<void>;
 	setAssignment: (cardId: string, name: string, blob: Blob) => Promise<void>;
 	removeAssignment: (cardId: string) => Promise<void>;
+
+	// palace theme
+	palaceTheme: PalaceThemeId;
+	setPalaceTheme: (theme: PalaceThemeId) => void;
 
 	// walk / shuffle
 	order: string[]; // shuffled cardIds for this run
@@ -94,6 +102,9 @@ export const useGameStore = create<GameState>()(
 					return { assignments };
 				});
 			},
+
+			palaceTheme: DEFAULT_PALACE_THEME,
+			setPalaceTheme: theme => setState({ palaceTheme: theme }),
 
 			order: [],
 			deckSize: 10,
@@ -175,6 +186,7 @@ export const useGameStore = create<GameState>()(
 				deckSize: state.deckSize,
 				quizMode: state.quizMode,
 				walkStartedAt: state.walkStartedAt,
+				palaceTheme: state.palaceTheme,
 			}),
 		},
 	),

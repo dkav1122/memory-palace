@@ -9,6 +9,7 @@ import { PalaceScene } from "@/components/palace/PalaceScene";
 import { SceneLoader } from "@/components/palace/SceneLoader";
 import { cardFullName } from "@/lib/cards";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
+import { PalaceThemePicker } from "@/components/PalaceThemePicker";
 import { useGameStore } from "@/store/gameStore";
 
 export default function PalacePage() {
@@ -23,6 +24,8 @@ export default function PalacePage() {
 		shuffle,
 		next,
 		prev,
+		palaceTheme,
+		setPalaceTheme,
 	} = useGameStore();
 
 	useEffect(() => {
@@ -79,6 +82,12 @@ export default function PalacePage() {
 						<p className="max-w-md text-zinc-400">
 							Shuffle the deck to place your images along the route.
 						</p>
+						<div className="w-full max-w-md text-left">
+							<PalaceThemePicker
+								value={palaceTheme}
+								onChange={setPalaceTheme}
+							/>
+						</div>
 						<DeckSizePicker
 							assignedCount={assignedCount}
 							onPick={size => shuffle(size)}
@@ -103,7 +112,11 @@ export default function PalacePage() {
 
 	return (
 		<div className="relative h-dvh w-full overflow-hidden">
-			<PalaceScene billboards={billboards} index={index} />
+			<PalaceScene
+				billboards={billboards}
+				index={index}
+				themeId={palaceTheme}
+			/>
 			<SceneLoader />
 
 			{/* top bar */}

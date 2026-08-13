@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
+import { PalaceThemePicker } from "@/components/PalaceThemePicker";
 import { formatMs } from "@/components/palace/Hud";
 import { EMPTY_HISTORY, loadHistory, type RunRecord } from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
@@ -12,7 +13,14 @@ const noopSubscribe = () => () => {};
 
 export default function HomePage() {
 	const router = useRouter();
-	const { assignments, hydrated, hydrate, shuffle } = useGameStore();
+	const {
+		assignments,
+		hydrated,
+		hydrate,
+		shuffle,
+		palaceTheme,
+		setPalaceTheme,
+	} = useGameStore();
 	const history = useSyncExternalStore(
 		noopSubscribe,
 		loadHistory,
@@ -76,6 +84,12 @@ export default function HomePage() {
 					<p className="mt-2 text-sm text-slate-600">
 						Shuffle the deck, then walk the palace and memorize the order.
 					</p>
+					<div className="mt-4">
+						<PalaceThemePicker
+							value={palaceTheme}
+							onChange={setPalaceTheme}
+						/>
+					</div>
 					<div className="mt-4">
 						{hydrated && assignedCount < 10 ? (
 							<p className="text-sm text-slate-500">
