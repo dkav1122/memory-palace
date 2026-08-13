@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CardChip } from "@/components/CardChip";
@@ -9,6 +9,11 @@ import { PalaceScene } from "@/components/palace/PalaceScene";
 import { SceneLoader } from "@/components/palace/SceneLoader";
 import { cardFullName } from "@/lib/cards";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
+import {
+	getPlayerSnapshot,
+	getServerPlayerSnapshot,
+	subscribePlayer,
+} from "@/lib/player";
 import { useGameStore } from "@/store/gameStore";
 
 export default function PalacePage() {
@@ -24,6 +29,11 @@ export default function PalacePage() {
 		next,
 		prev,
 	} = useGameStore();
+	const player = useSyncExternalStore(
+		subscribePlayer,
+		getPlayerSnapshot,
+		getServerPlayerSnapshot,
+	);
 
 	useEffect(() => {
 		hydrate();
@@ -103,7 +113,11 @@ export default function PalacePage() {
 
 	return (
 		<div className="relative h-dvh w-full overflow-hidden">
-			<PalaceScene billboards={billboards} index={index} />
+			<PalaceScene
+				billboards={billboards}
+				index={index}
+				appearance={player.appearance}
+			/>
 			<SceneLoader />
 
 			{/* top bar */}
@@ -117,6 +131,7 @@ export default function PalacePage() {
 					<HudPill>
 						{index + 1} / {order.length}
 					</HudPill>
+					<HudPill data-testid="player-name-hud">{player.name}</HudPill>
 				</div>
 				<HudPill>
 					<Timer startedAt={walkStartedAt} />

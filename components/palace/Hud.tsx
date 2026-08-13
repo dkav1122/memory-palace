@@ -27,13 +27,12 @@ export function Timer({ startedAt }: { startedAt: number | null }) {
 export function HudPill({
 	children,
 	className = "",
-}: {
-	children: React.ReactNode;
-	className?: string;
-}) {
+	...rest
+}: React.ComponentPropsWithoutRef<"div">) {
 	return (
 		<div
 			className={`pointer-events-auto rounded-full border border-white/15 bg-black/55 px-4 py-2 text-sm text-white backdrop-blur ${className}`}
+			{...rest}
 		>
 			{children}
 		</div>

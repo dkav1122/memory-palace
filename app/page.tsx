@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
 import { formatMs } from "@/components/palace/Hud";
+import { PlayerSetup } from "@/components/player/PlayerSetup";
 import { EMPTY_HISTORY, loadHistory, type RunRecord } from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
 
@@ -43,6 +44,10 @@ export default function HomePage() {
 					image at each stop. Recall is just walking the route again.
 				</p>
 			</header>
+
+			<div className="mb-4">
+				<PlayerSetup />
+			</div>
 
 			<div className="grid gap-4 sm:grid-cols-2">
 				{/* deck setup */}
