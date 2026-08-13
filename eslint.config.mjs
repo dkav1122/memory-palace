@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The orchestrator is a standalone package with its own deps/tsconfig;
+    // keep it out of the app's lint and build toolchain.
+    "orchestrator/**",
   ]),
 ]);
 
