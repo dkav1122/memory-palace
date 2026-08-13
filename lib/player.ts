@@ -63,6 +63,10 @@ export interface PlayerProfile {
 
 const PLAYER_KEY = "mp:player";
 
+// Cache to ensure loadPlayer returns the same object reference
+let cachedPlayer: PlayerProfile | null | undefined = undefined;
+let cachedRaw: string | null = undefined;
+
 export function appearanceById(id: AppearanceId): AppearancePreset {
 	return APPEARANCES.find(a => a.id === id) ?? APPEARANCES[0];
 }
@@ -71,7 +75,17 @@ export function loadPlayer(): PlayerProfile | null {
 	if (typeof window === "undefined") return null;
 	try {
 		const raw = window.localStorage.getItem(PLAYER_KEY);
-		if (!raw) return null;
+		// Return cached value if localStorage hasn't changed
+		if (raw === cachedRaw && cachedPlayer !== undefined) {
+			return cachedPlayer;
+		}
+		
+		cachedRaw = raw;
+		
+		if (!raw) {
+			cachedPlayer = null;
+			return null;
+		}
 		const parsed = JSON.parse(raw) as Partial<PlayerProfile>;
 		if (
 			typeof parsed.name !== "string" ||
@@ -79,13 +93,16 @@ export function loadPlayer(): PlayerProfile | null {
 			typeof parsed.appearance !== "string" ||
 			!APPEARANCE_IDS.includes(parsed.appearance as AppearanceId)
 		) {
+			cachedPlayer = null;
 			return null;
 		}
-		return {
+		cachedPlayer = {
 			name: parsed.name.trim().slice(0, 24),
 			appearance: parsed.appearance as AppearanceId,
 		};
+		return cachedPlayer;
 	} catch {
+		cachedPlayer = null;
 		return null;
 	}
 }
@@ -98,6 +115,9 @@ export function savePlayer(profile: PlayerProfile): void {
 			: "explorer",
 	};
 	window.localStorage.setItem(PLAYER_KEY, JSON.stringify(cleaned));
+	// Invalidate cache
+	cachedPlayer = undefined;
+	cachedRaw = undefined;
 	window.dispatchEvent(new Event("mp:player"));
 }
 
