@@ -27,10 +27,12 @@ import {
 	WAYPOINTS,
 } from "@/lib/palace";
 import { mulberry32 } from "@/lib/rng";
+import type { AppearanceId } from "@/lib/player";
 import { Landmarks } from "./Landmarks";
 import { PhotoBillboard } from "./PhotoBillboard";
 import { CameraRig } from "./CameraRig";
 import { FitModel } from "./FitModel";
+import { PlayerAvatar } from "./PlayerAvatar";
 
 const SUN_DIR = new THREE.Vector3(80, 120, -200).normalize();
 const SUN_DIST = 140;
@@ -306,11 +308,16 @@ export interface BillboardState {
 export function PalaceScene({
 	billboards,
 	index,
+	player,
 }: {
 	/** one entry per waypoint in play (order.length entries) */
 	billboards: BillboardState[];
 	index: number;
+	/** optional third-person walker along the path */
+	player?: { name: string; appearance: AppearanceId } | null;
 }) {
+	const hasPlayer = !!player;
+
 	return (
 		<Canvas
 			shadows
@@ -347,7 +354,15 @@ export function PalaceScene({
 				/>
 			))}
 
-			<CameraRig index={index} />
+			{hasPlayer && (
+				<PlayerAvatar
+					index={index}
+					name={player.name}
+					appearance={player.appearance}
+				/>
+			)}
+
+			<CameraRig index={index} overShoulder={hasPlayer} />
 
 			<EffectComposer multisampling={4}>
 				<N8AO aoRadius={2} intensity={2.5} distanceFalloff={1} halfRes />

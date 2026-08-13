@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CardChip } from "@/components/CardChip";
@@ -9,6 +9,7 @@ import { formatMs, HudPill, Timer } from "@/components/palace/Hud";
 import { PalaceScene } from "@/components/palace/PalaceScene";
 import { SceneLoader } from "@/components/palace/SceneLoader";
 import { cardFullName } from "@/lib/cards";
+import { loadPlayer, subscribePlayer } from "@/lib/player";
 import { useGameStore } from "@/store/gameStore";
 
 export default function GamePage() {
@@ -29,6 +30,7 @@ export default function GamePage() {
 		shuffle,
 		deckSize,
 	} = useGameStore();
+	const player = useSyncExternalStore(subscribePlayer, loadPlayer, () => null);
 
 	useEffect(() => {
 		hydrate();
@@ -84,7 +86,7 @@ export default function GamePage() {
 
 	return (
 		<div className="relative h-dvh w-full overflow-hidden">
-			<PalaceScene billboards={billboards} index={index} />
+			<PalaceScene billboards={billboards} index={index} player={player} />
 			<SceneLoader />
 
 			{/* top bar */}
