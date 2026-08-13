@@ -81,6 +81,20 @@ function Sun() {
 	);
 }
 
+// Stable module-level onLoad callback: drei re-runs it whenever its identity
+// changes, and mutating textures here keeps react-hooks/immutability happy.
+function configureGrassTextures(textures: {
+	map: THREE.Texture;
+	normalMap: THREE.Texture;
+}) {
+	for (const tex of Object.values(textures)) {
+		tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+		tex.repeat.set(45, 132);
+		tex.anisotropy = 8;
+	}
+	textures.map.colorSpace = THREE.SRGBColorSpace;
+}
+
 function Terrain() {
 	const geometry = useMemo(() => {
 		const geo = new THREE.PlaneGeometry(360, 1060, 90, 240);
@@ -94,18 +108,13 @@ function Terrain() {
 		return geo;
 	}, []);
 
-	const textures = useTexture({
-		map: "/textures/grass_color.jpg",
-		normalMap: "/textures/grass_normal.jpg",
-	});
-	useMemo(() => {
-		for (const tex of Object.values(textures)) {
-			tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-			tex.repeat.set(45, 132);
-			tex.anisotropy = 8;
-		}
-		textures.map.colorSpace = THREE.SRGBColorSpace;
-	}, [textures]);
+	const textures = useTexture(
+		{
+			map: "/textures/grass_color.jpg",
+			normalMap: "/textures/grass_normal.jpg",
+		},
+		configureGrassTextures,
+	);
 
 	return (
 		<mesh geometry={geometry} receiveShadow>
