@@ -85,8 +85,17 @@ Requirements:
    \`npm run build\`, and fix anything your change broke.
 4. Only touch files needed for the fix. Never modify files under
    \`orchestrator/\`, \`docs/\`, or \`workflow.config.json\`.
-5. End your reply with a short summary: what you changed, why, and the exact
-   validation commands you ran with their outcomes.
+5. After validation, demo the change with computer use against the running
+   app at \`http://localhost:3000\` (reuse the \`dev\` terminal if it is already
+   up). Exercise the affected user flow. Capture screenshots of the change;
+   if it is interactive (gameplay, animation, race), also capture a short
+   video. Attach those artifacts to the PR (walkthrough artifacts / PR
+   description). Do not commit screenshot or video binaries into the repo.
+   If the change has no user-visible surface, say so in the summary and skip
+   capture.
+6. End your reply with a short summary: what you changed, why, the exact
+   validation commands you ran with their outcomes, and whether screenshots
+   or a short video were attached.
 
 The pull request title should start with "[${jiraIssueKey}]" followed by a
 concise description of the fix.`;

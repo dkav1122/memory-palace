@@ -1,6 +1,6 @@
 {
   "github": { "repo": "dkav1122/memory-palace" },
-  "cursor": { "model": "composer-2.5" },
+  "cursor": { "model": "auto" },
   "jira": {
     "baseUrl": "https://dixonsworkspace-13267887.atlassian.net",
     "projectKey": "KAN",
