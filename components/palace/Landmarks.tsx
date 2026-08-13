@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { mulberry32 } from "@/lib/rng";
 import type { LandmarkType, Waypoint } from "@/lib/palace";
+import type { PalaceThemeId } from "@/lib/palaceThemes";
 import { FitModel } from "./FitModel";
 
 /**
@@ -39,8 +40,28 @@ const MODEL_URLS = [
 	`${HEXAGON}/unit-mill.glb`,
 	`${TOWN}/fountain-round.glb`,
 	`${TOWN}/fountain-center.glb`,
+	`${TOWN}/windmill.glb`,
+	`${TOWN}/blade.glb`,
 ];
 MODEL_URLS.forEach(url => useGLTF.preload(url));
+
+const TOWN_LANDMARK_TYPES = [
+	"house",
+	"mill",
+	"fountain",
+	"windmill",
+	"monument",
+	"twinHouses",
+	"plaza",
+	"workshop",
+	"market",
+	"tower",
+	"gate",
+	"cottages",
+	"well",
+] as const;
+
+type TownLandmarkType = (typeof TOWN_LANDMARK_TYPES)[number];
 
 function Campfire() {
 	return (
@@ -126,7 +147,7 @@ function Flowers() {
 	);
 }
 
-function LandmarkModel({ type }: { type: LandmarkType }) {
+function NatureLandmarkModel({ type }: { type: LandmarkType }) {
 	switch (type) {
 		case "oak":
 			return <FitModel url={`${NATURE}/tree_oak.glb`} size={5} />;
@@ -191,8 +212,161 @@ function LandmarkModel({ type }: { type: LandmarkType }) {
 	}
 }
 
-function Landmark({ waypoint }: { waypoint: Waypoint }) {
-	const { landmarkType, seed } = waypoint;
+function TownLandmarkModel({ type }: { type: TownLandmarkType }) {
+	switch (type) {
+		case "house":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={4.5} />;
+		case "mill":
+			return <FitModel url={`${HEXAGON}/unit-mill.glb`} size={6.5} />;
+		case "fountain":
+			return (
+				<group>
+					<FitModel url={`${TOWN}/fountain-round.glb`} size={3.2} />
+					<FitModel
+						url={`${TOWN}/fountain-center.glb`}
+						size={1.8}
+						position={[0, 0.35, 0]}
+					/>
+				</group>
+			);
+		case "windmill":
+			return <FitModel url={`${TOWN}/windmill.glb`} size={7.5} />;
+		case "monument":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/rock_largeA.glb`} size={2.2} />
+					<FitModel
+						url={`${TOWN}/blade.glb`}
+						size={3.8}
+						position={[0, 1.1, 0]}
+					/>
+				</group>
+			);
+		case "twinHouses":
+			return (
+				<group>
+					<FitModel url={`${HEXAGON}/unit-house.glb`} size={4} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.6}
+						position={[3.4, 0, 1.2]}
+						rotation={[0, 0.6, 0]}
+					/>
+				</group>
+			);
+		case "plaza":
+			return (
+				<group>
+					<FitModel url={`${TOWN}/fountain-round.glb`} size={2.6} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.4}
+						position={[-3.8, 0, 1.5]}
+						rotation={[0, 0.4, 0]}
+					/>
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.4}
+						position={[3.8, 0, 1.2]}
+						rotation={[0, -0.5, 0]}
+					/>
+				</group>
+			);
+		case "workshop":
+			return (
+				<group>
+					<FitModel url={`${HEXAGON}/unit-mill.glb`} size={5.5} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.2}
+						position={[3.2, 0, 1.4]}
+					/>
+				</group>
+			);
+		case "market":
+			return (
+				<group>
+					<FitModel url={`${HEXAGON}/unit-house.glb`} size={3.8} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.5}
+						position={[2.8, 0, 2.2]}
+						rotation={[0, 1.1, 0]}
+					/>
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.2}
+						position={[-2.6, 0, 1.8]}
+						rotation={[0, -0.8, 0]}
+					/>
+				</group>
+			);
+		case "tower":
+			return <FitModel url={`${HEXAGON}/unit-mill.glb`} size={8.5} />;
+		case "gate":
+			return (
+				<group>
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={4}
+						position={[-2.4, 0, 0]}
+					/>
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={4}
+						position={[2.4, 0, 0]}
+					/>
+					<FitModel
+						url={`${NATURE}/statue_ring.glb`}
+						size={3.2}
+						position={[0, 0, 0.6]}
+					/>
+				</group>
+			);
+		case "cottages":
+			return (
+				<group>
+					<FitModel url={`${HEXAGON}/unit-house.glb`} size={3.6} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.2}
+						position={[3.0, 0, -1.4]}
+						rotation={[0, 2.4, 0]}
+					/>
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.1}
+						position={[-1.8, 0, 1.6]}
+					/>
+				</group>
+			);
+		case "well":
+			return (
+				<group>
+					<FitModel url={`${TOWN}/fountain-round.glb`} size={2.4} />
+					<FitModel
+						url={`${TOWN}/fountain-center.glb`}
+						size={1.4}
+						position={[0, 0.25, 0]}
+					/>
+					<FitModel
+						url={`${NATURE}/rock_largeE.glb`}
+						size={1.2}
+						position={[2.2, 0, 0.8]}
+					/>
+				</group>
+			);
+	}
+}
+
+function Landmark({
+	waypoint,
+	themeId,
+}: {
+	waypoint: Waypoint;
+	themeId: PalaceThemeId;
+}) {
+	const { landmarkType, seed, index } = waypoint;
 	const variant = useMemo(() => {
 		const rand = mulberry32(seed);
 		return {
@@ -201,22 +375,35 @@ function Landmark({ waypoint }: { waypoint: Waypoint }) {
 		};
 	}, [seed]);
 
+	const townType =
+		TOWN_LANDMARK_TYPES[index % TOWN_LANDMARK_TYPES.length];
+
 	return (
 		<group
 			position={waypoint.landmarkPos}
 			rotation={[0, variant.rotation, 0]}
 			scale={variant.scale}
 		>
-			<LandmarkModel type={landmarkType} />
+			{themeId === "town" ? (
+				<TownLandmarkModel type={townType} />
+			) : (
+				<NatureLandmarkModel type={landmarkType} />
+			)}
 		</group>
 	);
 }
 
-export function Landmarks({ waypoints }: { waypoints: Waypoint[] }) {
+export function Landmarks({
+	waypoints,
+	themeId = "nature",
+}: {
+	waypoints: Waypoint[];
+	themeId?: PalaceThemeId;
+}) {
 	return (
 		<>
 			{waypoints.map(w => (
-				<Landmark key={w.index} waypoint={w} />
+				<Landmark key={w.index} waypoint={w} themeId={themeId} />
 			))}
 		</>
 	);

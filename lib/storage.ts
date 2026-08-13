@@ -1,13 +1,20 @@
 import { del, entries, set } from "idb-keyval";
+import {
+	DEFAULT_PALACE_THEME,
+	isPalaceThemeId,
+	type PalaceThemeId,
+} from "@/lib/palaceThemes";
 
 /**
  * Local-first storage (v1, per PLAN.md):
  * - photo assignments -> IndexedDB (blobs are too big for localStorage)
  * - run history       -> localStorage
+ * - palace theme      -> localStorage
  */
 
 const PHOTO_PREFIX = "photo:";
 const HISTORY_KEY = "mp:history";
+const THEME_KEY = "mp:palaceTheme";
 
 export interface StoredAssignment {
   name: string;
@@ -102,4 +109,19 @@ export function saveRun(run: RunRecord): void {
   const history = [run, ...loadHistory()].slice(0, 100);
   historyCache = history;
   window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+export function loadPalaceTheme(): PalaceThemeId {
+  if (typeof window === "undefined") return DEFAULT_PALACE_THEME;
+  try {
+    const raw = window.localStorage.getItem(THEME_KEY);
+    return isPalaceThemeId(raw) ? raw : DEFAULT_PALACE_THEME;
+  } catch {
+    return DEFAULT_PALACE_THEME;
+  }
+}
+
+export function savePalaceTheme(theme: PalaceThemeId): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(THEME_KEY, theme);
 }

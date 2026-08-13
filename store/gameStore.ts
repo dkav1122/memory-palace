@@ -1,10 +1,16 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+	DEFAULT_PALACE_THEME,
+	type PalaceThemeId,
+} from "@/lib/palaceThemes";
 import { shuffleArray } from "@/lib/rng";
 import {
 	deleteAssignment,
 	loadAssignments,
+	loadPalaceTheme,
 	saveAssignment,
+	savePalaceTheme,
 	saveRun,
 } from "@/lib/storage";
 
@@ -35,6 +41,8 @@ interface GameState {
 	deckSize: DeckSize;
 	index: number;
 	walkStartedAt: number | null;
+	palaceTheme: PalaceThemeId;
+	setPalaceTheme: (theme: PalaceThemeId) => void;
 	shuffle: (size: DeckSize) => void;
 	setIndex: (i: number) => void;
 	next: () => void;
@@ -67,7 +75,11 @@ export const useGameStore = create<GameState>()(
 					for (const [cardId, { name, blob }] of Object.entries(stored)) {
 						assignments[cardId] = { name, url: URL.createObjectURL(blob) };
 					}
-					setState({ assignments, hydrated: true });
+					setState({
+						assignments,
+						palaceTheme: loadPalaceTheme(),
+						hydrated: true,
+					});
 				})();
 				return hydrating;
 			},
@@ -99,6 +111,12 @@ export const useGameStore = create<GameState>()(
 			deckSize: 10,
 			index: 0,
 			walkStartedAt: null,
+			palaceTheme: DEFAULT_PALACE_THEME,
+
+			setPalaceTheme: theme => {
+				savePalaceTheme(theme);
+				setState({ palaceTheme: theme });
+			},
 
 			shuffle: size => {
 				const assigned = Object.keys(getState().assignments);
