@@ -167,14 +167,18 @@ export const useGameStore = create<GameState>()(
 		}),
 		{
 			name: "mp:game",
-			storage: createJSONStorage(() => sessionStorage),
-			// Object URLs and quiz progress don't survive reloads; persist only
-			// the shuffle itself so a mid-walk refresh keeps the same deck order.
+			storage: createJSONStorage(() => localStorage),
+			// Object URLs still need IDB hydrate; persist shuffle + in-progress
+			// walk/quiz fields so a mid-play reload or tab discard can resume.
 			partialize: state => ({
 				order: state.order,
 				deckSize: state.deckSize,
 				quizMode: state.quizMode,
 				walkStartedAt: state.walkStartedAt,
+				index: state.index,
+				answers: state.answers,
+				quizStartedAt: state.quizStartedAt,
+				quizFinishedAt: state.quizFinishedAt,
 			}),
 		},
 	),

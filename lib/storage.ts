@@ -82,6 +82,8 @@ export interface RunRecord {
 
 export const EMPTY_HISTORY: RunRecord[] = [];
 
+const HISTORY_CHANGED_EVENT = "mp:history-changed";
+
 // Cached so loadHistory returns a stable reference (usable as a
 // useSyncExternalStore snapshot).
 let historyCache: RunRecord[] | null = null;
@@ -98,8 +100,43 @@ export function loadHistory(): RunRecord[] {
   return historyCache;
 }
 
+/** Subscribe to history changes for useSyncExternalStore (same-tab + cross-tab + bfcache). */
+export function subscribeHistory(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const invalidate = () => {
+    historyCache = null;
+    onStoreChange();
+  };
+
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === HISTORY_KEY || event.key === null) invalidate();
+  };
+  const onCustom = () => onStoreChange();
+  const onPageShow = (event: PageTransitionEvent) => {
+    if (event.persisted) invalidate();
+  };
+
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(HISTORY_CHANGED_EVENT, onCustom);
+  window.addEventListener("pageshow", onPageShow);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(HISTORY_CHANGED_EVENT, onCustom);
+    window.removeEventListener("pageshow", onPageShow);
+  };
+}
+
 export function saveRun(run: RunRecord): void {
-  const history = [run, ...loadHistory()].slice(0, 100);
+  const previous = loadHistory();
+  const history = [run, ...previous].slice(0, 100);
   historyCache = history;
-  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    window.dispatchEvent(new Event(HISTORY_CHANGED_EVENT));
+  } catch {
+    // Keep cache coherent with durable storage when setItem fails
+    // (e.g. Safari private mode quota / disabled storage).
+    historyCache = previous.length === 0 ? EMPTY_HISTORY : previous;
+  }
 }

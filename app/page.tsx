@@ -5,16 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
 import { formatMs } from "@/components/palace/Hud";
-import { EMPTY_HISTORY, loadHistory, type RunRecord } from "@/lib/storage";
+import {
+	EMPTY_HISTORY,
+	loadHistory,
+	subscribeHistory,
+	type RunRecord,
+} from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
-
-const noopSubscribe = () => () => {};
 
 export default function HomePage() {
 	const router = useRouter();
 	const { assignments, hydrated, hydrate, shuffle } = useGameStore();
 	const history = useSyncExternalStore(
-		noopSubscribe,
+		subscribeHistory,
 		loadHistory,
 		() => EMPTY_HISTORY,
 	);

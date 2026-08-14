@@ -89,10 +89,15 @@ Requirements:
    app at \`http://localhost:3000\` (reuse the \`dev\` terminal if it is already
    up). Exercise the affected user flow. Capture screenshots of the change;
    if it is interactive (gameplay, animation, race), also capture a short
-   video. Attach those artifacts to the PR (walkthrough artifacts / PR
-   description). Do not commit screenshot or video binaries into the repo.
-   If the change has no user-visible surface, say so in the summary and skip
-   capture.
+   video. Save every capture as a file in \`/opt/cursor/artifacts/\` (PNG for
+   screenshots, MP4 or WebM for video) and verify each file is real and
+   non-empty — Cursor uploads artifacts from that directory and embeds them
+   in the pull request. Add a "## Demo" section to the PR description that
+   names each artifact file and says in one line what it shows. Capture must
+   finish before you do; never write placeholder text promising that
+   screenshots will be attached later. Do not commit screenshot or video
+   binaries into the repo. If the change has no user-visible surface, say so
+   in the summary and skip capture.
 6. End your reply with a short summary: what you changed, why, the exact
    validation commands you ran with their outcomes, and whether screenshots
    or a short video were attached.

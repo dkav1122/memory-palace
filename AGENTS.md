@@ -8,3 +8,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 The game is a client-only Next.js app. A `dev` terminal is started by `.cursor/environment.json` at `http://localhost:3000`. Persistence is IndexedDB in the browser — there is no login. Demo from `/` → deck setup → palace as needed. Do not rewrite `.cursor/environment.json` as part of a ticket fix.
 
+When demoing UI changes, save screenshots (PNG) and short videos (MP4/WebM) as real, non-empty files in `/opt/cursor/artifacts/` — Cursor uploads that directory and embeds the files in the pull request. Reference each artifact in a "## Demo" section of the PR description. Never commit these binaries to the repo, and never write placeholder text promising media later.
+

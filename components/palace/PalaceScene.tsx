@@ -1,6 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import {
+	Component,
+	Suspense,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type ReactNode,
+} from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
 	Environment,
@@ -303,6 +311,49 @@ export interface BillboardState {
 	revealed: boolean;
 }
 
+function preferLowEffects(): boolean {
+	if (typeof navigator === "undefined") return false;
+	const cores = navigator.hardwareConcurrency || 8;
+	const memory =
+		(navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
+	return cores <= 4 || memory <= 4;
+}
+
+class PalaceErrorBoundary extends Component<
+	{ children: ReactNode; onRetry: () => void },
+	{ hasError: boolean }
+> {
+	state = { hasError: false };
+
+	static getDerivedStateFromError() {
+		return { hasError: true };
+	}
+
+	render() {
+		if (this.state.hasError) {
+			return (
+				<div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-zinc-950/95 p-6 text-center">
+					<p className="text-zinc-300">The palace view crashed.</p>
+					<p className="max-w-sm text-sm text-zinc-500">
+						Your progress is saved — you can restore the scene and continue.
+					</p>
+					<button
+						type="button"
+						className="rounded-lg bg-emerald-600 px-4 py-2.5 font-semibold text-white hover:bg-emerald-500"
+						onClick={() => {
+							this.setState({ hasError: false });
+							this.props.onRetry();
+						}}
+					>
+						Restore palace view
+					</button>
+				</div>
+			);
+		}
+		return this.props.children;
+	}
+}
+
 export function PalaceScene({
 	billboards,
 	index,
@@ -311,50 +362,92 @@ export function PalaceScene({
 	billboards: BillboardState[];
 	index: number;
 }) {
+	const [canvasKey, setCanvasKey] = useState(0);
+	const [contextLost, setContextLost] = useState(false);
+	const lowEffects = useMemo(() => preferLowEffects(), []);
+
+	const remount = () => {
+		setContextLost(false);
+		setCanvasKey(k => k + 1);
+	};
+
 	return (
-		<Canvas
-			shadows
-			camera={{
-				fov: 55,
-				near: 0.1,
-				far: 900,
-				position: OVERVIEW_POSE.position,
-			}}
-			className="!absolute inset-0"
-		>
-			<Sky sunPosition={[80, 120, -200]} turbidity={6} />
-			<fog attach="fog" args={["#cfe3f2", 60, 420]} />
-			{/* The HDRI has a bright sun disk baked in, so keep its intensity low —
-			    otherwise it double-lights the scene and washes out the sun shadows. */}
-			<Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.2} />
-			<Sun />
+		<PalaceErrorBoundary onRetry={remount}>
+			{contextLost ? (
+				<div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-zinc-950/95 p-6 text-center">
+					<p className="text-zinc-300">Graphics context was lost.</p>
+					<p className="max-w-sm text-sm text-zinc-500">
+						This can happen on low-memory devices. Your quiz progress is saved.
+					</p>
+					<button
+						type="button"
+						className="rounded-lg bg-emerald-600 px-4 py-2.5 font-semibold text-white hover:bg-emerald-500"
+						onClick={remount}
+					>
+						Restore palace view
+					</button>
+				</div>
+			) : (
+				<Canvas
+					key={canvasKey}
+					shadows={!lowEffects}
+					camera={{
+						fov: 55,
+						near: 0.1,
+						far: 900,
+						position: OVERVIEW_POSE.position,
+					}}
+					className="!absolute inset-0"
+					onCreated={({ gl }) => {
+						const canvas = gl.domElement;
+						const onLost = (event: Event) => {
+							event.preventDefault();
+							setContextLost(true);
+						};
+						canvas.addEventListener("webglcontextlost", onLost);
+					}}
+				>
+					<Sky sunPosition={[80, 120, -200]} turbidity={6} />
+					<fog attach="fog" args={["#cfe3f2", 60, 420]} />
+					{/* The HDRI has a bright sun disk baked in, so keep its intensity low —
+					    otherwise it double-lights the scene and washes out the sun shadows. */}
+					<Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.2} />
+					{lowEffects ? (
+						<ambientLight intensity={0.85} />
+					) : (
+						<Sun />
+					)}
 
-			<Suspense fallback={null}>
-				<Terrain />
-				<DirtPath />
-				<WaypointMarkers />
-				<GrassTufts />
-				<ScatterTrees />
-				<Landmarks waypoints={WAYPOINTS} />
-			</Suspense>
+					<Suspense fallback={null}>
+						<Terrain />
+						<DirtPath />
+						<WaypointMarkers />
+						{!lowEffects && <GrassTufts />}
+						{!lowEffects && <ScatterTrees />}
+						<Landmarks waypoints={WAYPOINTS} />
+					</Suspense>
 
-			{billboards.map((b, i) => (
-				<PhotoBillboard
-					key={`${i}-${b.cardId}`}
-					waypoint={WAYPOINTS[i]}
-					url={b.url}
-					revealed={b.revealed}
-				/>
-			))}
+					{billboards.map((b, i) => (
+						<PhotoBillboard
+							key={`${i}-${b.cardId}`}
+							waypoint={WAYPOINTS[i]}
+							url={b.url}
+							revealed={b.revealed}
+						/>
+					))}
 
-			<CameraRig index={index} />
+					<CameraRig index={index} />
 
-			<EffectComposer multisampling={4}>
-				<N8AO aoRadius={2} intensity={2.5} distanceFalloff={1} halfRes />
-				<Bloom mipmapBlur luminanceThreshold={1.1} intensity={0.5} />
-				<Vignette eskil={false} offset={0.25} darkness={0.5} />
-				<ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-			</EffectComposer>
-		</Canvas>
+					{!lowEffects && (
+						<EffectComposer multisampling={4}>
+							<N8AO aoRadius={2} intensity={2.5} distanceFalloff={1} halfRes />
+							<Bloom mipmapBlur luminanceThreshold={1.1} intensity={0.5} />
+							<Vignette eskil={false} offset={0.25} darkness={0.5} />
+							<ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+						</EffectComposer>
+					)}
+				</Canvas>
+			)}
+		</PalaceErrorBoundary>
 	);
 }
