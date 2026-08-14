@@ -17,6 +17,7 @@ export function CameraRig({ index }: { index: number }) {
 
 	useFrame((state, delta) => {
 		const waypoint = WAYPOINTS[index];
+		if (!waypoint) return;
 		desiredPos.current.set(...waypoint.cameraPos);
 		desiredTarget.current.set(...waypoint.cameraTarget);
 

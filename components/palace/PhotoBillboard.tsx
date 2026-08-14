@@ -53,10 +53,11 @@ export function PhotoBillboard({
 	url,
 	revealed,
 }: {
-	waypoint: Waypoint;
+	waypoint: Waypoint | undefined;
 	url: string;
 	revealed: boolean;
 }) {
+	if (!waypoint) return null;
 	const [x, y, z] = waypoint.billboardPos;
 	const groundY = y - 2.6;
 

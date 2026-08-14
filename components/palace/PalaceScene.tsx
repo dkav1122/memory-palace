@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
 	Environment,
 	Instance,
@@ -25,12 +25,14 @@ import {
 	terrainHeight,
 	TOTAL_WAYPOINTS,
 	WAYPOINTS,
+	type Waypoint,
 } from "@/lib/palace";
 import { mulberry32 } from "@/lib/rng";
 import { Landmarks } from "./Landmarks";
 import { PhotoBillboard } from "./PhotoBillboard";
 import { CameraRig } from "./CameraRig";
 import { FitModel } from "./FitModel";
+import { PalaceErrorBoundary } from "./PalaceErrorBoundary";
 
 const SUN_DIR = new THREE.Vector3(80, 120, -200).normalize();
 const SUN_DIST = 140;
@@ -182,10 +184,10 @@ function DirtPath() {
 }
 
 /** Stone circles marking each waypoint on the path. */
-function WaypointMarkers() {
+function WaypointMarkers({ waypoints }: { waypoints: Waypoint[] }) {
 	return (
 		<>
-			{WAYPOINTS.map(w => (
+			{waypoints.map(w => (
 				<FitModel
 					key={w.index}
 					url="/models/nature/path_stoneCircle.glb"
@@ -194,6 +196,59 @@ function WaypointMarkers() {
 				/>
 			))}
 		</>
+	);
+}
+
+function preferDegradedGraphics(): boolean {
+	if (typeof navigator === "undefined") return false;
+	const cores = navigator.hardwareConcurrency || 8;
+	const memory = (navigator as Navigator & { deviceMemory?: number })
+		.deviceMemory;
+	const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+	return mobile || cores <= 4 || (memory !== undefined && memory <= 4);
+}
+
+/** Listens for GPU context loss inside the Canvas and notifies the parent. */
+function WebGLContextGuard({ onLost }: { onLost: () => void }) {
+	const gl = useThree(s => s.gl);
+	useEffect(() => {
+		const el = gl.domElement;
+		const handleLost = (e: Event) => {
+			e.preventDefault();
+			onLost();
+		};
+		el.addEventListener("webglcontextlost", handleLost);
+		return () => el.removeEventListener("webglcontextlost", handleLost);
+	}, [gl, onLost]);
+	return null;
+}
+
+function RecoveryScreen({
+	reason,
+	onRetry,
+}: {
+	reason: "error" | "context";
+	onRetry: () => void;
+}) {
+	return (
+		<div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-[#0b0f14] px-6 text-center">
+			<h2 className="text-xl font-semibold text-white">
+				{reason === "context"
+					? "Graphics context was lost"
+					: "Something went wrong in the palace"}
+			</h2>
+			<p className="max-w-md text-sm text-zinc-400">
+				The walk can continue with lighter graphics. Your progress is kept —
+				retry to remount the scene.
+			</p>
+			<button
+				type="button"
+				onClick={onRetry}
+				className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500"
+			>
+				Retry with safer graphics
+			</button>
+		</div>
 	);
 }
 
@@ -311,50 +366,101 @@ export function PalaceScene({
 	billboards: BillboardState[];
 	index: number;
 }) {
+	const [canvasKey, setCanvasKey] = useState(0);
+	const [degraded, setDegraded] = useState(preferDegradedGraphics);
+	const [failure, setFailure] = useState<null | "error" | "context">(null);
+
+	const activeWaypoints = useMemo(
+		() => WAYPOINTS.slice(0, Math.max(billboards.length, 1)),
+		[billboards.length],
+	);
+
+	const handleLost = useCallback(() => {
+		setDegraded(true);
+		setFailure("context");
+	}, []);
+
+	const handleError = useCallback(() => {
+		setDegraded(true);
+		setFailure("error");
+	}, []);
+
+	const retry = useCallback(() => {
+		setDegraded(true);
+		setFailure(null);
+		setCanvasKey(k => k + 1);
+	}, []);
+
+	if (failure) {
+		return <RecoveryScreen reason={failure} onRetry={retry} />;
+	}
+
 	return (
-		<Canvas
-			shadows
-			camera={{
-				fov: 55,
-				near: 0.1,
-				far: 900,
-				position: OVERVIEW_POSE.position,
-			}}
-			className="!absolute inset-0"
-		>
-			<Sky sunPosition={[80, 120, -200]} turbidity={6} />
-			<fog attach="fog" args={["#cfe3f2", 60, 420]} />
-			{/* The HDRI has a bright sun disk baked in, so keep its intensity low —
-			    otherwise it double-lights the scene and washes out the sun shadows. */}
-			<Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.2} />
-			<Sun />
+		<PalaceErrorBoundary key={canvasKey} onError={handleError}>
+			<Canvas
+				shadows={!degraded}
+				dpr={degraded ? [1, 1.25] : [1, 2]}
+				camera={{
+					fov: 55,
+					near: 0.1,
+					far: 900,
+					position: OVERVIEW_POSE.position,
+				}}
+				className="!absolute inset-0"
+			>
+				<WebGLContextGuard onLost={handleLost} />
+				<Sky sunPosition={[80, 120, -200]} turbidity={6} />
+				<fog attach="fog" args={["#cfe3f2", 60, 420]} />
+				{/* The HDRI has a bright sun disk baked in, so keep its intensity low —
+				    otherwise it double-lights the scene and washes out the sun shadows. */}
+				<Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.2} />
+				{degraded ? (
+					<ambientLight intensity={0.85} />
+				) : (
+					<Sun />
+				)}
+				{degraded && (
+					<directionalLight
+						position={[80, 120, -200]}
+						intensity={2.2}
+						color="#fff2dc"
+					/>
+				)}
 
-			<Suspense fallback={null}>
-				<Terrain />
-				<DirtPath />
-				<WaypointMarkers />
-				<GrassTufts />
-				<ScatterTrees />
-				<Landmarks waypoints={WAYPOINTS} />
-			</Suspense>
+				<Suspense fallback={null}>
+					<Terrain />
+					<DirtPath />
+					<WaypointMarkers waypoints={activeWaypoints} />
+					{!degraded && <GrassTufts />}
+					{!degraded && <ScatterTrees />}
+					<Landmarks waypoints={activeWaypoints} />
+				</Suspense>
 
-			{billboards.map((b, i) => (
-				<PhotoBillboard
-					key={`${i}-${b.cardId}`}
-					waypoint={WAYPOINTS[i]}
-					url={b.url}
-					revealed={b.revealed}
-				/>
-			))}
+				{billboards.map((b, i) => (
+					<PhotoBillboard
+						key={`${i}-${b.cardId}`}
+						waypoint={WAYPOINTS[i]}
+						url={b.url}
+						revealed={b.revealed}
+					/>
+				))}
 
-			<CameraRig index={index} />
+				<CameraRig index={index} />
 
-			<EffectComposer multisampling={4}>
-				<N8AO aoRadius={2} intensity={2.5} distanceFalloff={1} halfRes />
-				<Bloom mipmapBlur luminanceThreshold={1.1} intensity={0.5} />
-				<Vignette eskil={false} offset={0.25} darkness={0.5} />
-				<ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-			</EffectComposer>
-		</Canvas>
+				{degraded ? (
+					<EffectComposer multisampling={0}>
+						<Vignette eskil={false} offset={0.25} darkness={0.45} />
+						<ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+					</EffectComposer>
+				) : (
+					<EffectComposer multisampling={4}>
+						<N8AO aoRadius={2} intensity={2.5} distanceFalloff={1} halfRes />
+						<Bloom mipmapBlur luminanceThreshold={1.1} intensity={0.5} />
+						<Vignette eskil={false} offset={0.25} darkness={0.5} />
+						<ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+					</EffectComposer>
+				)}
+			</Canvas>
+		</PalaceErrorBoundary>
 	);
 }
