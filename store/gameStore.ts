@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
-	applyColorTheme,
 	DEFAULT_COLOR_THEME_ID,
 	isColorThemeId,
 	type ColorThemeId,
@@ -116,10 +115,7 @@ export const useGameStore = create<GameState>()(
 			themeId: DEFAULT_THEME_ID,
 			setThemeId: id => setState({ themeId: id }),
 			colorThemeId: DEFAULT_COLOR_THEME_ID,
-			setColorThemeId: id => {
-				applyColorTheme(id);
-				setState({ colorThemeId: id });
-			},
+			setColorThemeId: id => setState({ colorThemeId: id }),
 			index: 0,
 			walkStartedAt: null,
 
@@ -215,9 +211,6 @@ export const useGameStore = create<GameState>()(
 					themeId,
 					colorThemeId,
 				};
-			},
-			onRehydrateStorage: () => state => {
-				if (state?.colorThemeId) applyColorTheme(state.colorThemeId);
 			},
 		},
 	),

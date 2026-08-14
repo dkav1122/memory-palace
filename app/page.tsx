@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
 import { ThemePicker } from "@/components/ThemePicker";
 import { formatMs } from "@/components/palace/Hud";
-import { applyColorTheme } from "@/lib/colorThemes";
 import { EMPTY_HISTORY, loadHistory, type RunRecord } from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
 
@@ -33,10 +32,6 @@ export default function HomePage() {
 	useEffect(() => {
 		hydrate();
 	}, [hydrate]);
-
-	useEffect(() => {
-		applyColorTheme(colorThemeId);
-	}, [colorThemeId]);
 
 	const assignedCount = Object.keys(assignments).length;
 	const best = bestRuns(history);
