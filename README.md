@@ -2,6 +2,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Copy `.env.example` to `.env.local` and set `OPENAI_API_KEY` if you want AI-generated card images on `/deck` ("Describe it"). Uploading your own photos does not require it.
+
 First, run the development server:
 
 ```bash
