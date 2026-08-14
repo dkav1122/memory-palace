@@ -3,6 +3,61 @@
 :root {
 	--background: #0b0f14;
 	--foreground: #e8ecf1;
+	/* Home / chrome color themes (toggled via data-color-theme on <html>) */
+	--mp-page-from: #f0f9ff;
+	--mp-page-via: #e0f2fe;
+	--mp-page-to: #bae6fd;
+	--mp-heading: #082f49;
+	--mp-body: #475569;
+	--mp-muted: #64748b;
+	--mp-label: #0369a1;
+	--mp-card-bg: rgb(255 255 255 / 0.7);
+	--mp-card-border: #bae6fd;
+	--mp-card-hover-border: #38bdf8;
+	--mp-selected-border: #10b981;
+	--mp-selected-bg: #ecfdf5;
+	--mp-link-hover: #059669;
+	--mp-best-bg: #f0fdf4;
+	--mp-best-border: #86efac;
+	--mp-best-label: #15803d;
+}
+
+html[data-color-theme="slate"] {
+	--mp-page-from: #f8fafc;
+	--mp-page-via: #e2e8f0;
+	--mp-page-to: #cbd5e1;
+	--mp-heading: #0f172a;
+	--mp-body: #475569;
+	--mp-muted: #64748b;
+	--mp-label: #334155;
+	--mp-card-bg: rgb(255 255 255 / 0.75);
+	--mp-card-border: #cbd5e1;
+	--mp-card-hover-border: #64748b;
+	--mp-selected-border: #0f766e;
+	--mp-selected-bg: #f0fdfa;
+	--mp-link-hover: #0f766e;
+	--mp-best-bg: #f1f5f9;
+	--mp-best-border: #94a3b8;
+	--mp-best-label: #334155;
+}
+
+html[data-color-theme="moss"] {
+	--mp-page-from: #f7faf5;
+	--mp-page-via: #e8f0e0;
+	--mp-page-to: #cfe0bc;
+	--mp-heading: #1a2e14;
+	--mp-body: #4b5563;
+	--mp-muted: #6b7280;
+	--mp-label: #3f6212;
+	--mp-card-bg: rgb(255 255 255 / 0.72);
+	--mp-card-border: #c5d4a8;
+	--mp-card-hover-border: #65a30d;
+	--mp-selected-border: #4d7c0f;
+	--mp-selected-bg: #f7fee7;
+	--mp-link-hover: #4d7c0f;
+	--mp-best-bg: #f7fee7;
+	--mp-best-border: #bef264;
+	--mp-best-label: #3f6212;
 }
 
 @theme inline {

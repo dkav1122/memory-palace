@@ -4,13 +4,15 @@ import { useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { mulberry32 } from "@/lib/rng";
 import type { LandmarkType, Waypoint } from "@/lib/palace";
+import type { LandmarkSet } from "@/lib/palaceThemes";
 import { FitModel } from "./FitModel";
 
 /**
  * 13 landmark types built from CC0 glTF models (Kenney nature / hexagon /
  * fantasy-town kits). Each of the 52 waypoints gets one, with seeded cosmetic
  * variation (scale/rotation) so every locus is visually distinct — the
- * player's job is to remember these places.
+ * player's job is to remember these places. Model choices depend on the
+ * selected palace theme's landmark set.
  */
 
 const NATURE = "/models/nature";
@@ -21,6 +23,7 @@ const MODEL_URLS = [
 	`${NATURE}/tree_oak.glb`,
 	`${NATURE}/tree_pineTallA_detailed.glb`,
 	`${NATURE}/tree_pineTallB_detailed.glb`,
+	`${NATURE}/tree_default.glb`,
 	`${NATURE}/rock_largeA.glb`,
 	`${NATURE}/rock_largeE.glb`,
 	`${NATURE}/stone_tallB.glb`,
@@ -39,6 +42,8 @@ const MODEL_URLS = [
 	`${HEXAGON}/unit-mill.glb`,
 	`${TOWN}/fountain-round.glb`,
 	`${TOWN}/fountain-center.glb`,
+	`${TOWN}/blade.glb`,
+	`${TOWN}/windmill.glb`,
 ];
 MODEL_URLS.forEach(url => useGLTF.preload(url));
 
@@ -126,7 +131,162 @@ function Flowers() {
 	);
 }
 
-function LandmarkModel({ type }: { type: LandmarkType }) {
+function DenseJungleGrove() {
+	return (
+		<group>
+			<FitModel url={`${NATURE}/tree_pineTallA_detailed.glb`} size={8} />
+			<FitModel
+				url={`${NATURE}/tree_pineTallB_detailed.glb`}
+				size={6.2}
+				position={[2.4, 0, 1.1]}
+			/>
+			<FitModel
+				url={`${NATURE}/tree_oak.glb`}
+				size={5.5}
+				position={[-2.2, 0, 1.6]}
+				rotation={[0, 1.4, 0]}
+			/>
+			<FitModel
+				url={`${NATURE}/plant_bush.glb`}
+				size={1.4}
+				position={[1.2, 0, -1.5]}
+			/>
+		</group>
+	);
+}
+
+function CityLandmarkModel({ type }: { type: LandmarkType }) {
+	switch (type) {
+		case "oak":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={5} />;
+		case "pines":
+			return (
+				<group>
+					<FitModel url={`${TOWN}/windmill.glb`} size={6.5} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.6}
+						position={[3.2, 0, 1.4]}
+					/>
+				</group>
+			);
+		case "boulder":
+			return (
+				<group>
+					<FitModel url={`${TOWN}/fountain-round.glb`} size={3.2} />
+					<FitModel
+						url={`${TOWN}/fountain-center.glb`}
+						size={1.8}
+						position={[0, 0.25, 0]}
+					/>
+				</group>
+			);
+		case "standingStone":
+			return <FitModel url={`${TOWN}/blade.glb`} size={4.2} />;
+		case "campfire":
+			return <Campfire />;
+		case "pond":
+			return <Pond />;
+		case "cabin":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={4.8} />;
+		case "well":
+			return (
+				<group>
+					<FitModel url={`${TOWN}/fountain-round.glb`} size={3} />
+					<FitModel
+						url={`${TOWN}/fountain-center.glb`}
+						size={1.7}
+						position={[0, 0.3, 0]}
+					/>
+				</group>
+			);
+		case "arch":
+			return <FitModel url={`${NATURE}/statue_ring.glb`} size={4.6} />;
+		case "obelisk":
+			return <FitModel url={`${NATURE}/statue_obelisk.glb`} size={5} />;
+		case "flowers":
+			return <Flowers />;
+		case "windmill":
+			return <FitModel url={`${HEXAGON}/unit-mill.glb`} size={7} />;
+		case "logpile":
+			return <FitModel url={`${NATURE}/log_stackLarge.glb`} size={2.6} />;
+	}
+}
+
+function JungleLandmarkModel({ type }: { type: LandmarkType }) {
+	switch (type) {
+		case "oak":
+			return <FitModel url={`${NATURE}/tree_oak.glb`} size={6.2} />;
+		case "pines":
+			return <DenseJungleGrove />;
+		case "boulder":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/rock_largeA.glb`} size={3.8} />
+					<FitModel
+						url={`${NATURE}/rock_largeE.glb`}
+						size={2.2}
+						position={[2.4, 0, 1.1]}
+						rotation={[0, 0.8, 0]}
+					/>
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.6}
+						position={[-1.8, 0, 1.4]}
+					/>
+				</group>
+			);
+		case "standingStone":
+			return <FitModel url={`${NATURE}/stone_tallB.glb`} size={4.5} />;
+		case "campfire":
+			return <Campfire />;
+		case "pond":
+			return <Pond />;
+		case "cabin":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/tree_default.glb`} size={5.5} />
+					<FitModel
+						url={`${NATURE}/log_stackLarge.glb`}
+						size={2.4}
+						position={[2.8, 0, 0.6]}
+					/>
+				</group>
+			);
+		case "well":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/statue_ring.glb`} size={3.2} />
+					<FitModel
+						url={`${NATURE}/lily_large.glb`}
+						size={1.2}
+						position={[0, 0.1, 0]}
+					/>
+				</group>
+			);
+		case "arch":
+			return <FitModel url={`${NATURE}/statue_ring.glb`} size={5.2} />;
+		case "obelisk":
+			return <FitModel url={`${NATURE}/statue_obelisk.glb`} size={5.5} />;
+		case "flowers":
+			return <Flowers />;
+		case "windmill":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/tree_pineTallA_detailed.glb`} size={9} />
+					<FitModel
+						url={`${NATURE}/tree_pineTallB_detailed.glb`}
+						size={7}
+						position={[2.6, 0, -1.2]}
+					/>
+				</group>
+			);
+		case "logpile":
+			return <FitModel url={`${NATURE}/log_stackLarge.glb`} size={3} />;
+	}
+}
+
+function CountrysideLandmarkModel({ type }: { type: LandmarkType }) {
 	switch (type) {
 		case "oak":
 			return <FitModel url={`${NATURE}/tree_oak.glb`} size={5} />;
@@ -191,7 +351,29 @@ function LandmarkModel({ type }: { type: LandmarkType }) {
 	}
 }
 
-function Landmark({ waypoint }: { waypoint: Waypoint }) {
+function LandmarkModel({
+	type,
+	landmarkSet,
+}: {
+	type: LandmarkType;
+	landmarkSet: LandmarkSet;
+}) {
+	if (landmarkSet === "jungle") {
+		return <JungleLandmarkModel type={type} />;
+	}
+	if (landmarkSet === "city") {
+		return <CityLandmarkModel type={type} />;
+	}
+	return <CountrysideLandmarkModel type={type} />;
+}
+
+function Landmark({
+	waypoint,
+	landmarkSet,
+}: {
+	waypoint: Waypoint;
+	landmarkSet: LandmarkSet;
+}) {
 	const { landmarkType, seed } = waypoint;
 	const variant = useMemo(() => {
 		const rand = mulberry32(seed);
@@ -207,16 +389,22 @@ function Landmark({ waypoint }: { waypoint: Waypoint }) {
 			rotation={[0, variant.rotation, 0]}
 			scale={variant.scale}
 		>
-			<LandmarkModel type={landmarkType} />
+			<LandmarkModel type={landmarkType} landmarkSet={landmarkSet} />
 		</group>
 	);
 }
 
-export function Landmarks({ waypoints }: { waypoints: Waypoint[] }) {
+export function Landmarks({
+	waypoints,
+	landmarkSet,
+}: {
+	waypoints: Waypoint[];
+	landmarkSet: LandmarkSet;
+}) {
 	return (
 		<>
 			{waypoints.map(w => (
-				<Landmark key={w.index} waypoint={w} />
+				<Landmark key={w.index} waypoint={w} landmarkSet={landmarkSet} />
 			))}
 		</>
 	);

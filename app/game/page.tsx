@@ -28,6 +28,7 @@ export default function GamePage() {
 		answer,
 		shuffle,
 		deckSize,
+		themeId,
 	} = useGameStore();
 
 	useEffect(() => {
@@ -84,7 +85,7 @@ export default function GamePage() {
 
 	return (
 		<div className="relative h-dvh w-full overflow-hidden">
-			<PalaceScene billboards={billboards} index={index} />
+			<PalaceScene billboards={billboards} index={index} themeId={themeId} />
 			<SceneLoader />
 
 			{/* top bar */}
