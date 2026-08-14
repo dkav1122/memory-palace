@@ -215,7 +215,9 @@ function WebGLContextGuard({ onLost }: { onLost: () => void }) {
 		const el = gl.domElement;
 		const handleLost = (e: Event) => {
 			e.preventDefault();
-			onLost();
+			// Defer past the loss event — React updates during the handler can
+			// fail to commit while the GPU context is tearing down.
+			queueMicrotask(() => onLost());
 		};
 		el.addEventListener("webglcontextlost", handleLost);
 		return () => el.removeEventListener("webglcontextlost", handleLost);
