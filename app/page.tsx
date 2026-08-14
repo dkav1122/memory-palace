@@ -129,9 +129,15 @@ export default function HomePage() {
 			{/* history */}
 			<section className="mt-10">
 				<h2 className="mb-3 text-lg font-bold text-sky-950">Your runs</h2>
+				<p className="mb-3 text-sm text-slate-500">
+					Runs are saved only in this browser — there is no account or
+					cross-device sync. If you don&apos;t see past runs, you may be on a
+					different device, in a private window, or site data was cleared.
+				</p>
 				{history.length === 0 ? (
 					<p className="rounded-xl border border-sky-200 bg-white/60 p-6 text-center text-sm text-slate-500">
-						No completed runs yet. Walk the palace, then enter game mode.
+						No completed runs yet in this browser. Walk the palace, then enter
+						game mode — your history stays on this device only.
 					</p>
 				) : (
 					<>
