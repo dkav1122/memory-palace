@@ -102,6 +102,22 @@ const ORCH_URL = (
 	process.env.NEXT_PUBLIC_ORCH_URL ?? "http://localhost:4100"
 ).replace(/\/$/, "");
 
+/** Mentions of external ad/marketing platforms outside Memory Palace's scope. */
+const EXTERNAL_AD_PLATFORM_PATTERNS = [
+	/\b(?:facebook|meta|instagram)\s*(?:ads?|advertising|marketing)\b/i,
+	/\bgoogle\s+ads?\b/i,
+	/\b(?:tiktok|linkedin|twitter|x)\s*(?:ads?|advertising)\b/i,
+	/\b(?:connect|link|integrate)\s+(?:my\s+)?(?:facebook|meta|google)\s+(?:ads?\s+)?account\b/i,
+	/\bmeta\s+marketing\s+api\b/i,
+];
+
+export const OUT_OF_SCOPE_AD_PLATFORM_MESSAGE =
+	"Memory Palace is a local-only memory game with no Facebook, Meta, or other ad-platform integrations. Please file a report only about deck setup, the palace walk, or game features.";
+
+export function mentionsExternalAdPlatform(text: string): boolean {
+	return EXTERNAL_AD_PLATFORM_PATTERNS.some(p => p.test(text));
+}
+
 async function parseError(res: Response): Promise<string> {
 	const data = (await res.json().catch(() => null)) as { error?: string } | null;
 	return data?.error ?? `Request failed (HTTP ${res.status})`;
