@@ -27,9 +27,11 @@ import {
 	WAYPOINTS,
 } from "@/lib/palace";
 import { mulberry32 } from "@/lib/rng";
+import type { CharacterAppearance } from "@/lib/character";
 import { Landmarks } from "./Landmarks";
 import { PhotoBillboard } from "./PhotoBillboard";
 import { CameraRig } from "./CameraRig";
+import { Character } from "./Character";
 import { FitModel } from "./FitModel";
 
 const SUN_DIR = new THREE.Vector3(80, 120, -200).normalize();
@@ -306,10 +308,12 @@ export interface BillboardState {
 export function PalaceScene({
 	billboards,
 	index,
+	character,
 }: {
 	/** one entry per waypoint in play (order.length entries) */
 	billboards: BillboardState[];
 	index: number;
+	character: CharacterAppearance;
 }) {
 	return (
 		<Canvas
@@ -347,6 +351,7 @@ export function PalaceScene({
 				/>
 			))}
 
+			<Character index={index} appearance={character} />
 			<CameraRig index={index} />
 
 			<EffectComposer multisampling={4}>

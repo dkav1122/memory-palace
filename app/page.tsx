@@ -94,6 +94,25 @@ export default function HomePage() {
 				</div>
 			</div>
 
+			{/* character designer */}
+			<Link
+				href="/character"
+				className="group mt-4 flex items-center justify-between rounded-2xl border border-sky-200 bg-white/70 px-6 py-4 shadow-sm transition hover:border-sky-400 hover:shadow-md"
+			>
+				<div>
+					<div className="text-sm font-semibold uppercase tracking-wide text-sky-700">
+						Optional
+					</div>
+					<h2 className="mt-0.5 text-base font-bold text-sky-950 group-hover:text-emerald-600">
+						Design your character
+					</h2>
+					<p className="mt-0.5 text-sm text-slate-600">
+						Choose a preset and colors for the walker on the path.
+					</p>
+				</div>
+				<span className="text-xl font-bold text-sky-950">→</span>
+			</Link>
+
 			{/* support portal */}
 			<div className="mt-4 grid gap-3 sm:grid-cols-2">
 				<Link

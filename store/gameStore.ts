@@ -1,10 +1,16 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+	DEFAULT_CHARACTER,
+	type CharacterAppearance,
+} from "@/lib/character";
 import { shuffleArray } from "@/lib/rng";
 import {
 	deleteAssignment,
 	loadAssignments,
+	loadCharacter,
 	saveAssignment,
+	saveCharacter,
 	saveRun,
 } from "@/lib/storage";
 
@@ -29,6 +35,10 @@ interface GameState {
 	hydrate: () => Promise<void>;
 	setAssignment: (cardId: string, name: string, blob: Blob) => Promise<void>;
 	removeAssignment: (cardId: string) => Promise<void>;
+
+	// walker appearance (IndexedDB)
+	character: CharacterAppearance;
+	setCharacter: (appearance: CharacterAppearance) => Promise<void>;
 
 	// walk / shuffle
 	order: string[]; // shuffled cardIds for this run
@@ -57,19 +67,28 @@ export const useGameStore = create<GameState>()(
 		(setState, getState) => ({
 			assignments: {},
 			hydrated: false,
+			character: DEFAULT_CHARACTER,
 
 			hydrate: async () => {
 				if (getState().hydrated) return;
 				if (hydrating) return hydrating;
 				hydrating = (async () => {
-					const stored = await loadAssignments();
+					const [stored, character] = await Promise.all([
+						loadAssignments(),
+						loadCharacter(),
+					]);
 					const assignments: Record<string, Assignment> = {};
 					for (const [cardId, { name, blob }] of Object.entries(stored)) {
 						assignments[cardId] = { name, url: URL.createObjectURL(blob) };
 					}
-					setState({ assignments, hydrated: true });
+					setState({ assignments, character, hydrated: true });
 				})();
 				return hydrating;
+			},
+
+			setCharacter: async appearance => {
+				await saveCharacter(appearance);
+				setState({ character: appearance });
 			},
 
 			setAssignment: async (cardId, name, blob) => {

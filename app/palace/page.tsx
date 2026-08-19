@@ -23,6 +23,7 @@ export default function PalacePage() {
 		shuffle,
 		next,
 		prev,
+		character,
 	} = useGameStore();
 
 	useEffect(() => {
@@ -103,7 +104,11 @@ export default function PalacePage() {
 
 	return (
 		<div className="relative h-dvh w-full overflow-hidden">
-			<PalaceScene billboards={billboards} index={index} />
+			<PalaceScene
+				billboards={billboards}
+				index={index}
+				character={character}
+			/>
 			<SceneLoader />
 
 			{/* top bar */}

@@ -1,12 +1,20 @@
-import { del, entries, set } from "idb-keyval";
+import { del, entries, get, set } from "idb-keyval";
+import {
+	DEFAULT_CHARACTER,
+	type CharacterAppearance,
+	type CharacterPresetId,
+	CHARACTER_PRESETS,
+} from "./character";
 
 /**
  * Local-first storage (v1, per PLAN.md):
  * - photo assignments -> IndexedDB (blobs are too big for localStorage)
+ * - character appearance -> IndexedDB
  * - run history       -> localStorage
  */
 
 const PHOTO_PREFIX = "photo:";
+const CHARACTER_KEY = "mp:character";
 const HISTORY_KEY = "mp:history";
 
 export interface StoredAssignment {
@@ -36,6 +44,41 @@ export async function loadAssignments(): Promise<
     }
   }
   return result;
+}
+
+function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+export async function loadCharacter(): Promise<CharacterAppearance> {
+  try {
+    const raw = await get<Partial<CharacterAppearance>>(CHARACTER_KEY);
+    if (!raw || typeof raw !== "object") return DEFAULT_CHARACTER;
+    const preset =
+      raw.preset && raw.preset in CHARACTER_PRESETS
+        ? (raw.preset as CharacterPresetId)
+        : DEFAULT_CHARACTER.preset;
+    const scale =
+      typeof raw.scale === "number" && raw.scale >= 0.85 && raw.scale <= 1.15
+        ? raw.scale
+        : DEFAULT_CHARACTER.scale;
+    return {
+      preset,
+      skin: isHexColor(raw.skin) ? raw.skin : DEFAULT_CHARACTER.skin,
+      hair: isHexColor(raw.hair) ? raw.hair : DEFAULT_CHARACTER.hair,
+      shirt: isHexColor(raw.shirt) ? raw.shirt : DEFAULT_CHARACTER.shirt,
+      pants: isHexColor(raw.pants) ? raw.pants : DEFAULT_CHARACTER.pants,
+      scale,
+    };
+  } catch {
+    return DEFAULT_CHARACTER;
+  }
+}
+
+export async function saveCharacter(
+  appearance: CharacterAppearance,
+): Promise<void> {
+  await set(CHARACTER_KEY, appearance);
 }
 
 /**
