@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import { mulberry32 } from "@/lib/rng";
 import type { LandmarkType, Waypoint } from "@/lib/palace";
+import type { PalaceThemeId } from "@/lib/palaceThemes";
 import { FitModel } from "./FitModel";
 
 /**
@@ -11,6 +12,9 @@ import { FitModel } from "./FitModel";
  * fantasy-town kits). Each of the 52 waypoints gets one, with seeded cosmetic
  * variation (scale/rotation) so every locus is visually distinct — the
  * player's job is to remember these places.
+ *
+ * City / Jungle themes remount the same waypoint types with different models
+ * so the route stays identical while the scenery changes.
  */
 
 const NATURE = "/models/nature";
@@ -21,6 +25,7 @@ const MODEL_URLS = [
 	`${NATURE}/tree_oak.glb`,
 	`${NATURE}/tree_pineTallA_detailed.glb`,
 	`${NATURE}/tree_pineTallB_detailed.glb`,
+	`${NATURE}/tree_default.glb`,
 	`${NATURE}/rock_largeA.glb`,
 	`${NATURE}/rock_largeE.glb`,
 	`${NATURE}/stone_tallB.glb`,
@@ -39,6 +44,7 @@ const MODEL_URLS = [
 	`${HEXAGON}/unit-mill.glb`,
 	`${TOWN}/fountain-round.glb`,
 	`${TOWN}/fountain-center.glb`,
+	`${TOWN}/windmill.glb`,
 ];
 MODEL_URLS.forEach(url => useGLTF.preload(url));
 
@@ -126,7 +132,20 @@ function Flowers() {
 	);
 }
 
-function LandmarkModel({ type }: { type: LandmarkType }) {
+function Fountain() {
+	return (
+		<group>
+			<FitModel url={`${TOWN}/fountain-round.glb`} size={2.8} />
+			<FitModel
+				url={`${TOWN}/fountain-center.glb`}
+				size={1.6}
+				position={[0, 0.3, 0]}
+			/>
+		</group>
+	);
+}
+
+function CountrysideLandmark({ type }: { type: LandmarkType }) {
 	switch (type) {
 		case "oak":
 			return <FitModel url={`${NATURE}/tree_oak.glb`} size={5} />;
@@ -168,16 +187,7 @@ function LandmarkModel({ type }: { type: LandmarkType }) {
 		case "cabin":
 			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={4.2} />;
 		case "well":
-			return (
-				<group>
-					<FitModel url={`${TOWN}/fountain-round.glb`} size={2.8} />
-					<FitModel
-						url={`${TOWN}/fountain-center.glb`}
-						size={1.6}
-						position={[0, 0.3, 0]}
-					/>
-				</group>
-			);
+			return <Fountain />;
 		case "arch":
 			return <FitModel url={`${NATURE}/statue_ring.glb`} size={4.6} />;
 		case "obelisk":
@@ -191,7 +201,194 @@ function LandmarkModel({ type }: { type: LandmarkType }) {
 	}
 }
 
-function Landmark({ waypoint }: { waypoint: Waypoint }) {
+/** Dense canopy / undergrowth variants of the countryside types. */
+function JungleLandmark({ type }: { type: LandmarkType }) {
+	switch (type) {
+		case "oak":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/tree_oak.glb`} size={6.5} />
+					<FitModel
+						url={`${NATURE}/tree_default.glb`}
+						size={4.5}
+						position={[2.4, 0, 1.2]}
+					/>
+				</group>
+			);
+		case "pines":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/tree_default.glb`} size={8} />
+					<FitModel
+						url={`${NATURE}/tree_oak.glb`}
+						size={5.5}
+						position={[2.2, 0, 1.0]}
+					/>
+					<FitModel
+						url={`${NATURE}/tree_default.glb`}
+						size={6.5}
+						position={[-2.0, 0, 1.4]}
+						rotation={[0, 1.4, 0]}
+					/>
+				</group>
+			);
+		case "boulder":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/rock_largeA.glb`} size={3.8} />
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.6}
+						position={[1.8, 0, 1.1]}
+					/>
+				</group>
+			);
+		case "standingStone":
+			return <FitModel url={`${NATURE}/stone_tallB.glb`} size={4.5} />;
+		case "campfire":
+			return <Campfire />;
+		case "pond":
+			return <Pond />;
+		case "cabin":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={3.6} />;
+		case "well":
+			return <Fountain />;
+		case "arch":
+			return <FitModel url={`${NATURE}/statue_ring.glb`} size={5} />;
+		case "obelisk":
+			return <FitModel url={`${NATURE}/statue_obelisk.glb`} size={5.5} />;
+		case "flowers":
+			return (
+				<group>
+					<Flowers />
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.4}
+						position={[1.6, 0, -1.2]}
+					/>
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.2}
+						position={[-1.8, 0, 0.8]}
+					/>
+				</group>
+			);
+		case "windmill":
+			return <FitModel url={`${NATURE}/tree_oak.glb`} size={7.5} />;
+		case "logpile":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/log_stackLarge.glb`} size={2.8} />
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={1.3}
+						position={[1.5, 0, 0.6]}
+					/>
+				</group>
+			);
+	}
+}
+
+/** Town / plaza remount of the same waypoint slots. */
+function CityLandmark({ type }: { type: LandmarkType }) {
+	switch (type) {
+		case "oak":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={5} />;
+		case "pines":
+			return (
+				<group>
+					<FitModel url={`${HEXAGON}/unit-house.glb`} size={4.5} />
+					<FitModel
+						url={`${HEXAGON}/unit-house.glb`}
+						size={3.8}
+						position={[3.2, 0, 1.0]}
+						rotation={[0, 0.6, 0]}
+					/>
+				</group>
+			);
+		case "boulder":
+			return (
+				<group>
+					<FitModel url={`${NATURE}/rock_largeA.glb`} size={2.6} />
+					<FitModel
+						url={`${NATURE}/rock_largeE.glb`}
+						size={1.5}
+						position={[1.8, 0, 0.7]}
+					/>
+				</group>
+			);
+		case "standingStone":
+			return <FitModel url={`${NATURE}/statue_obelisk.glb`} size={4.5} />;
+		case "campfire":
+			return <Fountain />;
+		case "pond":
+			return (
+				<group>
+					<mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+						<circleGeometry args={[2.4, 24]} />
+						<meshStandardMaterial
+							color="#4a5560"
+							roughness={0.35}
+							metalness={0.15}
+						/>
+					</mesh>
+					<FitModel
+						url={`${NATURE}/statue_ring.glb`}
+						size={2.2}
+						position={[0, 0.05, 0]}
+					/>
+				</group>
+			);
+		case "cabin":
+			return <FitModel url={`${HEXAGON}/unit-mill.glb`} size={6} />;
+		case "well":
+			return <Fountain />;
+		case "arch":
+			return <FitModel url={`${NATURE}/statue_ring.glb`} size={5} />;
+		case "obelisk":
+			return <FitModel url={`${NATURE}/statue_obelisk.glb`} size={6} />;
+		case "flowers":
+			return (
+				<group>
+					<FitModel url={`${TOWN}/fountain-center.glb`} size={2.2} />
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={0.9}
+						position={[1.4, 0, 1.0]}
+					/>
+					<FitModel
+						url={`${NATURE}/plant_bush.glb`}
+						size={0.8}
+						position={[-1.3, 0, -0.9]}
+					/>
+				</group>
+			);
+		case "windmill":
+			return <FitModel url={`${TOWN}/windmill.glb`} size={8} />;
+		case "logpile":
+			return <FitModel url={`${HEXAGON}/unit-house.glb`} size={4} />;
+	}
+}
+
+function LandmarkModel({
+	type,
+	themeId,
+}: {
+	type: LandmarkType;
+	themeId: PalaceThemeId;
+}) {
+	if (themeId === "jungle") return <JungleLandmark type={type} />;
+	if (themeId === "city") return <CityLandmark type={type} />;
+	return <CountrysideLandmark type={type} />;
+}
+
+function Landmark({
+	waypoint,
+	themeId,
+}: {
+	waypoint: Waypoint;
+	themeId: PalaceThemeId;
+}) {
 	const { landmarkType, seed } = waypoint;
 	const variant = useMemo(() => {
 		const rand = mulberry32(seed);
@@ -207,16 +404,22 @@ function Landmark({ waypoint }: { waypoint: Waypoint }) {
 			rotation={[0, variant.rotation, 0]}
 			scale={variant.scale}
 		>
-			<LandmarkModel type={landmarkType} />
+			<LandmarkModel type={landmarkType} themeId={themeId} />
 		</group>
 	);
 }
 
-export function Landmarks({ waypoints }: { waypoints: Waypoint[] }) {
+export function Landmarks({
+	waypoints,
+	themeId,
+}: {
+	waypoints: Waypoint[];
+	themeId: PalaceThemeId;
+}) {
 	return (
 		<>
 			{waypoints.map(w => (
-				<Landmark key={w.index} waypoint={w} />
+				<Landmark key={w.index} waypoint={w} themeId={themeId} />
 			))}
 		</>
 	);

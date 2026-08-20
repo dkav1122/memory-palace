@@ -1,5 +1,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+	DEFAULT_THEME_ID,
+	type PalaceThemeId,
+} from "@/lib/palaceThemes";
 import { shuffleArray } from "@/lib/rng";
 import {
 	deleteAssignment,
@@ -16,6 +20,7 @@ export interface Assignment {
 
 export type DeckSize = 10 | 26 | 52;
 export type QuizMode = "easy" | "hard";
+export type { PalaceThemeId };
 
 export interface QuizAnswer {
 	choice: string; // cardId chosen
@@ -29,6 +34,10 @@ interface GameState {
 	hydrate: () => Promise<void>;
 	setAssignment: (cardId: string, name: string, blob: Blob) => Promise<void>;
 	removeAssignment: (cardId: string) => Promise<void>;
+
+	// palace theme
+	themeId: PalaceThemeId;
+	setThemeId: (id: PalaceThemeId) => void;
 
 	// walk / shuffle
 	order: string[]; // shuffled cardIds for this run
@@ -94,6 +103,9 @@ export const useGameStore = create<GameState>()(
 					return { assignments };
 				});
 			},
+
+			themeId: DEFAULT_THEME_ID,
+			setThemeId: id => setState({ themeId: id }),
 
 			order: [],
 			deckSize: 10,
@@ -175,6 +187,7 @@ export const useGameStore = create<GameState>()(
 				deckSize: state.deckSize,
 				quizMode: state.quizMode,
 				walkStartedAt: state.walkStartedAt,
+				themeId: state.themeId,
 			}),
 		},
 	),
