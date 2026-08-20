@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DeckSizePicker } from "@/components/DeckSizePicker";
+import { ThemePicker } from "@/components/ThemePicker";
 import { formatMs } from "@/components/palace/Hud";
 import { EMPTY_HISTORY, loadHistory, type RunRecord } from "@/lib/storage";
 import { useGameStore } from "@/store/gameStore";
@@ -12,7 +13,8 @@ const noopSubscribe = () => () => {};
 
 export default function HomePage() {
 	const router = useRouter();
-	const { assignments, hydrated, hydrate, shuffle } = useGameStore();
+	const { assignments, hydrated, hydrate, shuffle, themeId, setThemeId } =
+		useGameStore();
 	const history = useSyncExternalStore(
 		noopSubscribe,
 		loadHistory,
@@ -74,9 +76,10 @@ export default function HomePage() {
 					</div>
 					<h2 className="mt-1 text-xl font-bold text-sky-950">Shuffle & walk</h2>
 					<p className="mt-2 text-sm text-slate-600">
-						Shuffle the deck, then walk the palace and memorize the order.
+						Pick a map, shuffle the deck, then walk and memorize the order.
 					</p>
-					<div className="mt-4">
+					<div className="mt-4 flex flex-col gap-4">
+						<ThemePicker value={themeId} onChange={setThemeId} />
 						{hydrated && assignedCount < 10 ? (
 							<p className="text-sm text-slate-500">
 								Assign at least 10 photos to start.
