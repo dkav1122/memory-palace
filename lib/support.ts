@@ -102,6 +102,28 @@ const ORCH_URL = (
 	process.env.NEXT_PUBLIC_ORCH_URL ?? "http://localhost:4100"
 ).replace(/\/$/, "");
 
+/**
+ * Mentions of payment / credit-card fraud outside Memory Palace's scope.
+ * "Card" alone is not matched — that refers to playing cards in this game.
+ */
+const PAYMENT_FRAUD_PATTERNS = [
+	/\bcredit\s*cards?\b/i,
+	/\bdebit\s*cards?\b/i,
+	/\b(?:card|credit)\s*(?:info(?:rmation)?|number|details?)\s*(?:was\s+)?stolen\b/i,
+	/\b(?:stolen|compromised)\s+(?:credit\s*)?card\b/i,
+	/\b(?:cvv|cvc|iban|ssn)\b/i,
+	/\b(?:stripe|paypal|square)\b/i,
+	/\b(?:billing|checkout|payment|purchase)\b/i,
+	/\b(?:bank\s+(?:account|fraud)|identity\s+theft)\b/i,
+];
+
+export const OUT_OF_SCOPE_PAYMENT_FRAUD_MESSAGE =
+	"Memory Palace does not process payments or store credit-card data — it is a local-only memory game with playing cards. If your card was used fraudulently, contact your card issuer or bank immediately. Please file a report only about deck setup, the palace walk, or game features.";
+
+export function mentionsPaymentOrCardFraud(text: string): boolean {
+	return PAYMENT_FRAUD_PATTERNS.some(p => p.test(text));
+}
+
 async function parseError(res: Response): Promise<string> {
 	const data = (await res.json().catch(() => null)) as { error?: string } | null;
 	return data?.error ?? `Request failed (HTTP ${res.status})`;
