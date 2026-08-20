@@ -43,7 +43,14 @@ export async function loadAssignments(): Promise<
  * textures and IndexedDB stays small.
  */
 export async function processPhoto(file: Blob, size = 512): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error(
+      "Could not decode this image. Use JPEG, PNG, or WebP (HEIC/HEIF is not supported).",
+    );
+  }
   const cropSize = Math.min(bitmap.width, bitmap.height);
   const canvas = document.createElement("canvas");
   canvas.width = size;
