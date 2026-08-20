@@ -34,114 +34,121 @@ export function DeckSetup() {
     );
   }
 
+  // Capture the card being edited so async save/remove cannot write to a
+  // different id if `editing` changes while a photo is still processing.
+  const editingId = editing;
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
-      <div className="mb-8 flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
-            ← Home
-          </Link>
-          <h1 className="mt-1 text-3xl font-bold">Your deck</h1>
-          <p className="mt-2 max-w-xl text-sm text-zinc-400">
-            Assign a photo and a name to each card. Pick images with strong
-            personal meaning — people, pets, places. The weirder and more vivid
-            the association, the better it sticks.
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-center">
-            <div className="text-2xl font-bold">{assignedCount} / 52</div>
-            <div className="text-xs text-zinc-500">cards assigned</div>
-            <div className="mt-1 text-xs text-zinc-500">
-              {assignedCount >= 10
-                ? "Ready to play"
-                : `${10 - assignedCount} more to play`}
-            </div>
+      <div inert={editingId ? true : undefined} aria-hidden={editingId ? true : undefined}>
+        <div className="mb-8 flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
+              ← Home
+            </Link>
+            <h1 className="mt-1 text-3xl font-bold">Your deck</h1>
+            <p className="mt-2 max-w-xl text-sm text-zinc-400">
+              Assign a photo and a name to each card. Pick images with strong
+              personal meaning — people, pets, places. The weirder and more vivid
+              the association, the better it sticks.
+            </p>
           </div>
-          <Link
-            href="/deck/import"
-            className="text-xs text-zinc-500 hover:text-zinc-300"
-          >
-            Import from folder →
-          </Link>
+          <div className="flex flex-col items-end gap-2">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-center">
+              <div className="text-2xl font-bold">{assignedCount} / 52</div>
+              <div className="text-xs text-zinc-500">cards assigned</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                {assignedCount >= 10
+                  ? "Ready to play"
+                  : `${10 - assignedCount} more to play`}
+              </div>
+            </div>
+            <Link
+              href="/deck/import"
+              className="text-xs text-zinc-500 hover:text-zinc-300"
+            >
+              Import from folder →
+            </Link>
+          </div>
         </div>
+
+        {SUITS.map((suit) => (
+          <section key={suit} className="mb-8">
+            <h2
+              className={`mb-3 text-lg font-semibold ${
+                isRedSuit(suit) ? "text-red-400" : "text-zinc-300"
+              }`}
+            >
+              {SUIT_SYMBOL[suit]} {SUIT_NAME[suit]}
+            </h2>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 md:grid-cols-13">
+              {DECK.filter((c) => c.suit === suit).map((card) => {
+                const assignment = assignments[card.id];
+                return (
+                  <button
+                    key={card.id}
+                    onClick={() => setEditing(card.id)}
+                    className={`group relative aspect-[3/4] overflow-hidden rounded-lg border text-left transition ${
+                      assignment
+                        ? "border-emerald-700/60 bg-zinc-900"
+                        : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-600"
+                    }`}
+                    title={cardFullName(card.id)}
+                  >
+                    {assignment ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={assignment.url}
+                          alt={assignment.name}
+                          className="absolute inset-0 h-full w-full object-cover opacity-80 group-hover:opacity-100"
+                        />
+                        <span className="absolute bottom-0 inset-x-0 bg-black/70 px-1 py-0.5 text-[10px] leading-tight text-zinc-200 truncate">
+                          {assignment.name}
+                        </span>
+                      </>
+                    ) : null}
+                    <span
+                      className={`absolute top-0.5 left-1 text-sm font-bold ${
+                        assignment
+                          ? "text-white drop-shadow"
+                          : isRedSuit(suit)
+                            ? "text-red-400/70"
+                            : "text-zinc-500"
+                      }`}
+                    >
+                      {card.rank}
+                      {SUIT_SYMBOL[suit]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
 
-      {SUITS.map((suit) => (
-        <section key={suit} className="mb-8">
-          <h2
-            className={`mb-3 text-lg font-semibold ${
-              isRedSuit(suit) ? "text-red-400" : "text-zinc-300"
-            }`}
-          >
-            {SUIT_SYMBOL[suit]} {SUIT_NAME[suit]}
-          </h2>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-7 md:grid-cols-13">
-            {DECK.filter((c) => c.suit === suit).map((card) => {
-              const assignment = assignments[card.id];
-              return (
-                <button
-                  key={card.id}
-                  onClick={() => setEditing(card.id)}
-                  className={`group relative aspect-[3/4] overflow-hidden rounded-lg border text-left transition ${
-                    assignment
-                      ? "border-emerald-700/60 bg-zinc-900"
-                      : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-600"
-                  }`}
-                  title={cardFullName(card.id)}
-                >
-                  {assignment ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={assignment.url}
-                        alt={assignment.name}
-                        className="absolute inset-0 h-full w-full object-cover opacity-80 group-hover:opacity-100"
-                      />
-                      <span className="absolute bottom-0 inset-x-0 bg-black/70 px-1 py-0.5 text-[10px] leading-tight text-zinc-200 truncate">
-                        {assignment.name}
-                      </span>
-                    </>
-                  ) : null}
-                  <span
-                    className={`absolute top-0.5 left-1 text-sm font-bold ${
-                      assignment
-                        ? "text-white drop-shadow"
-                        : isRedSuit(suit)
-                          ? "text-red-400/70"
-                          : "text-zinc-500"
-                    }`}
-                  >
-                    {card.rank}
-                    {SUIT_SYMBOL[suit]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-
-      {editing && (
+      {editingId && (
         <CardEditor
-          cardId={editing}
-          existingName={assignments[editing]?.name ?? ""}
-          existingUrl={assignments[editing]?.url}
+          key={editingId}
+          cardId={editingId}
+          existingName={assignments[editingId]?.name ?? ""}
+          existingUrl={assignments[editingId]?.url}
           onSave={async (name, image) => {
             if (image) {
               const blob = await processPhoto(image);
-              await setAssignment(editing, name, blob);
-            } else if (assignments[editing]) {
+              await setAssignment(editingId, name, blob);
+            } else if (assignments[editingId]) {
               // rename only: re-store the existing blob with the new name
-              const res = await fetch(assignments[editing].url);
-              await setAssignment(editing, name, await res.blob());
+              const res = await fetch(assignments[editingId].url);
+              await setAssignment(editingId, name, await res.blob());
             }
             setEditing(null);
           }}
           onRemove={
-            assignments[editing]
+            assignments[editingId]
               ? async () => {
-                  await removeAssignment(editing);
+                  await removeAssignment(editingId);
                   setEditing(null);
                 }
               : undefined
@@ -208,11 +215,13 @@ function CardEditor({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 p-4"
-      onClick={onClose}
+      onClick={saving ? undefined : onClose}
     >
       <div
         className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
         <div className="mb-4 flex items-center gap-3">
           <span
@@ -340,14 +349,16 @@ function CardEditor({
           {onRemove && (
             <button
               onClick={onRemove}
-              className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400 hover:bg-red-950"
+              disabled={saving}
+              className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400 hover:bg-red-950 disabled:opacity-40"
             >
               Remove
             </button>
           )}
           <button
             onClick={onClose}
-            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-900"
+            disabled={saving}
+            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
           >
             Cancel
           </button>
