@@ -26,6 +26,11 @@ import {
 	TOTAL_WAYPOINTS,
 	WAYPOINTS,
 } from "@/lib/palace";
+import {
+	getPalaceTheme,
+	type PalaceTheme,
+	type PalaceThemeId,
+} from "@/lib/palaceThemes";
 import { mulberry32 } from "@/lib/rng";
 import { Landmarks } from "./Landmarks";
 import { PhotoBillboard } from "./PhotoBillboard";
@@ -40,7 +45,7 @@ const SUN_DIST = 140;
  * so a single static shadow camera would be far too coarse — instead a tight
  * ortho frustum tracks the player along the path.
  */
-function Sun() {
+function Sun({ theme }: { theme: PalaceTheme }) {
 	const lightRef = useRef<THREE.DirectionalLight>(null);
 	const targetRef = useRef<THREE.Object3D>(null);
 
@@ -65,8 +70,8 @@ function Sun() {
 			<directionalLight
 				ref={lightRef}
 				castShadow
-				intensity={3.2}
-				color="#fff2dc"
+				intensity={theme.sun.intensity}
+				color={theme.sun.color}
 				shadow-mapSize={[2048, 2048]}
 				shadow-camera-left={-55}
 				shadow-camera-right={55}
@@ -81,21 +86,32 @@ function Sun() {
 	);
 }
 
-// Stable module-level onLoad callback: drei re-runs it whenever its identity
+// Stable module-level onLoad callbacks: drei re-runs them whenever identity
 // changes, and mutating textures here keeps react-hooks/immutability happy.
-function configureGrassTextures(textures: {
-	map: THREE.Texture;
-	normalMap: THREE.Texture;
-}) {
+function configureTerrainTextures(
+	textures: { map: THREE.Texture; normalMap: THREE.Texture },
+	repeat: [number, number],
+) {
 	for (const tex of Object.values(textures)) {
 		tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-		tex.repeat.set(45, 132);
+		tex.repeat.set(...repeat);
 		tex.anisotropy = 8;
 	}
 	textures.map.colorSpace = THREE.SRGBColorSpace;
 }
 
-function Terrain() {
+function configurePathTextures(textures: {
+	map: THREE.Texture;
+	normalMap: THREE.Texture;
+}) {
+	for (const tex of Object.values(textures)) {
+		tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+		tex.anisotropy = 8;
+	}
+	textures.map.colorSpace = THREE.SRGBColorSpace;
+}
+
+function Terrain({ theme }: { theme: PalaceTheme }) {
 	const geometry = useMemo(() => {
 		const geo = new THREE.PlaneGeometry(360, 1060, 90, 240);
 		geo.rotateX(-Math.PI / 2);
@@ -108,23 +124,36 @@ function Terrain() {
 		return geo;
 	}, []);
 
+	const [rx, rz] = theme.terrain.repeat;
+	const onLoad = useMemo(
+		() =>
+			(textures: { map: THREE.Texture; normalMap: THREE.Texture }) =>
+				configureTerrainTextures(textures, [rx, rz]),
+		[rx, rz],
+	);
+
 	const textures = useTexture(
 		{
-			map: "/textures/grass_color.jpg",
-			normalMap: "/textures/grass_normal.jpg",
+			map: theme.terrain.colorMap,
+			normalMap: theme.terrain.normalMap,
 		},
-		configureGrassTextures,
+		onLoad,
 	);
 
 	return (
 		<mesh geometry={geometry} receiveShadow>
-			<meshStandardMaterial {...textures} roughness={1} metalness={0} />
+			<meshStandardMaterial
+				{...textures}
+				color={theme.terrain.tint ?? "#ffffff"}
+				roughness={1}
+				metalness={0}
+			/>
 		</mesh>
 	);
 }
 
 /** Dirt ribbon mesh draped over the terrain along the walking path. */
-function DirtPath() {
+function DirtPath({ theme }: { theme: PalaceTheme }) {
 	const geometry = useMemo(() => {
 		const HALF = 1.35;
 		const positions: number[] = [];
@@ -162,33 +191,34 @@ function DirtPath() {
 		return geo;
 	}, []);
 
-	const textures = useTexture({
-		map: "/textures/dirt_color.jpg",
-		normalMap: "/textures/dirt_normal.jpg",
-	});
-	useMemo(() => {
-		for (const tex of Object.values(textures)) {
-			tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-			tex.anisotropy = 8;
-		}
-		textures.map.colorSpace = THREE.SRGBColorSpace;
-	}, [textures]);
+	const textures = useTexture(
+		{
+			map: theme.path.colorMap,
+			normalMap: theme.path.normalMap,
+		},
+		configurePathTextures,
+	);
 
 	return (
 		<mesh geometry={geometry} receiveShadow>
-			<meshStandardMaterial {...textures} roughness={1} metalness={0} />
+			<meshStandardMaterial
+				{...textures}
+				color={theme.path.tint ?? "#ffffff"}
+				roughness={1}
+				metalness={0}
+			/>
 		</mesh>
 	);
 }
 
-/** Stone circles marking each waypoint on the path. */
-function WaypointMarkers() {
+/** Markers at each waypoint on the path. */
+function WaypointMarkers({ theme }: { theme: PalaceTheme }) {
 	return (
 		<>
 			{WAYPOINTS.map(w => (
 				<FitModel
 					key={w.index}
-					url="/models/nature/path_stoneCircle.glb"
+					url={theme.waypointMarker}
 					size={2.4}
 					position={[w.pathPos[0], w.pathPos[1] + 0.08, w.pathPos[2]]}
 				/>
@@ -197,9 +227,9 @@ function WaypointMarkers() {
 	);
 }
 
-/** Instanced grass tufts scattered near the trail. */
-function GrassTufts() {
-	const { scene } = useGLTF("/models/nature/grass_leafs.glb");
+/** Instanced ground cover scattered near the trail. */
+function GrassTufts({ theme }: { theme: PalaceTheme }) {
+	const { scene } = useGLTF(theme.scatter.tuftModel);
 	const { geometry, material, baseScale } = useMemo(() => {
 		let mesh: THREE.Mesh | undefined;
 		scene.traverse(o => {
@@ -208,19 +238,20 @@ function GrassTufts() {
 		const geo = mesh!.geometry;
 		geo.computeBoundingBox();
 		const h = geo.boundingBox!.max.y - geo.boundingBox!.min.y || 1;
-		// Custom material so the tufts match the grass texture rather than the
-		// teal Kenney palette.
 		const mat = new THREE.MeshStandardMaterial({
-			color: "#7fa64f",
+			color: theme.scatter.tuftColor,
 			roughness: 1,
 		});
 		return { geometry: geo, material: mat, baseScale: 0.45 / h };
-	}, [scene]);
+	}, [scene, theme.scatter.tuftColor]);
 
 	const tufts = useMemo(() => {
 		const rand = mulberry32(4242);
-		const result: { pos: [number, number, number]; rot: number; scale: number }[] =
-			[];
+		const result: {
+			pos: [number, number, number];
+			rot: number;
+			scale: number;
+		}[] = [];
 		for (let i = 0; i < 1800; i++) {
 			const t = rand() * (TOTAL_WAYPOINTS + 1.5) - 1;
 			const a = pathXZ(t - 0.3);
@@ -259,12 +290,15 @@ function GrassTufts() {
 	);
 }
 
-/** Distant scatter trees for depth — decorative only, kept far from the path. */
-function ScatterTrees() {
+/** Distant scatter props for depth — decorative only, kept far from the path. */
+function ScatterTrees({ theme }: { theme: PalaceTheme }) {
 	const trees = useMemo(() => {
 		const rand = mulberry32(777);
-		const result: { pos: [number, number, number]; size: number; variant: number }[] =
-			[];
+		const result: {
+			pos: [number, number, number];
+			size: number;
+			variant: number;
+		}[] = [];
 		for (let i = 0; i < 90; i++) {
 			const z = -rand() * 880 + 20;
 			const side = rand() < 0.5 ? -1 : 1;
@@ -283,11 +317,7 @@ function ScatterTrees() {
 			{trees.map((t, i) => (
 				<FitModel
 					key={i}
-					url={
-						t.variant === 0
-							? "/models/nature/tree_pineRoundA.glb"
-							: "/models/nature/tree_pineRoundC.glb"
-					}
+					url={theme.scatter.treeModels[t.variant]}
 					size={t.size}
 					position={t.pos}
 				/>
@@ -306,13 +336,18 @@ export interface BillboardState {
 export function PalaceScene({
 	billboards,
 	index,
+	themeId,
 }: {
 	/** one entry per waypoint in play (order.length entries) */
 	billboards: BillboardState[];
 	index: number;
+	themeId: PalaceThemeId;
 }) {
+	const theme = getPalaceTheme(themeId);
+
 	return (
 		<Canvas
+			key={themeId}
 			shadows
 			camera={{
 				fov: 55,
@@ -322,20 +357,29 @@ export function PalaceScene({
 			}}
 			className="!absolute inset-0"
 		>
-			<Sky sunPosition={[80, 120, -200]} turbidity={6} />
-			<fog attach="fog" args={["#cfe3f2", 60, 420]} />
+			<Sky
+				sunPosition={theme.sky.sunPosition}
+				turbidity={theme.sky.turbidity}
+			/>
+			<fog
+				attach="fog"
+				args={[theme.fog.color, theme.fog.near, theme.fog.far]}
+			/>
 			{/* The HDRI has a bright sun disk baked in, so keep its intensity low —
 			    otherwise it double-lights the scene and washes out the sun shadows. */}
-			<Environment files="/hdri/sky_1k.hdr" environmentIntensity={0.2} />
-			<Sun />
+			<Environment
+				files={theme.hdri}
+				environmentIntensity={theme.environmentIntensity}
+			/>
+			<Sun theme={theme} />
 
 			<Suspense fallback={null}>
-				<Terrain />
-				<DirtPath />
-				<WaypointMarkers />
-				<GrassTufts />
-				<ScatterTrees />
-				<Landmarks waypoints={WAYPOINTS} />
+				<Terrain theme={theme} />
+				<DirtPath theme={theme} />
+				<WaypointMarkers theme={theme} />
+				<GrassTufts theme={theme} />
+				<ScatterTrees theme={theme} />
+				<Landmarks waypoints={WAYPOINTS} landmarkSet={theme.landmarkSet} />
 			</Suspense>
 
 			{billboards.map((b, i) => (
