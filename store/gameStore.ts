@@ -1,5 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+	DEFAULT_THEME_ID,
+	isPalaceThemeId,
+	type PalaceThemeId,
+} from "@/lib/palaceThemes";
 import { shuffleArray } from "@/lib/rng";
 import {
 	deleteAssignment,
@@ -16,6 +21,7 @@ export interface Assignment {
 
 export type DeckSize = 10 | 26 | 52;
 export type QuizMode = "easy" | "hard";
+export type { PalaceThemeId };
 
 export interface QuizAnswer {
 	choice: string; // cardId chosen
@@ -33,6 +39,8 @@ interface GameState {
 	// walk / shuffle
 	order: string[]; // shuffled cardIds for this run
 	deckSize: DeckSize;
+	themeId: PalaceThemeId;
+	setThemeId: (id: PalaceThemeId) => void;
 	index: number;
 	walkStartedAt: number | null;
 	shuffle: (size: DeckSize) => void;
@@ -97,6 +105,8 @@ export const useGameStore = create<GameState>()(
 
 			order: [],
 			deckSize: 10,
+			themeId: DEFAULT_THEME_ID,
+			setThemeId: id => setState({ themeId: id }),
 			index: 0,
 			walkStartedAt: null,
 
@@ -173,9 +183,20 @@ export const useGameStore = create<GameState>()(
 			partialize: state => ({
 				order: state.order,
 				deckSize: state.deckSize,
+				themeId: state.themeId,
 				quizMode: state.quizMode,
 				walkStartedAt: state.walkStartedAt,
 			}),
+			merge: (persisted, current) => {
+				const p = (persisted ?? {}) as Partial<GameState>;
+				return {
+					...current,
+					...p,
+					themeId: isPalaceThemeId(p.themeId ?? "")
+						? p.themeId!
+						: DEFAULT_THEME_ID,
+				};
+			},
 		},
 	),
 );
