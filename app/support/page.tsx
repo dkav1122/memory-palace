@@ -3,7 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { submitRequest, type SupportRequestType } from "@/lib/support";
+import {
+	mentionsPaymentOrCardFraud,
+	OUT_OF_SCOPE_PAYMENT_FRAUD_MESSAGE,
+	submitRequest,
+	type SupportRequestType,
+} from "@/lib/support";
 
 const REQUEST_TYPES: Array<{ value: SupportRequestType; label: string; hint: string }> = [
 	{ value: "bug", label: "@bug", hint: "Something is broken" },
@@ -24,6 +29,17 @@ export default function SupportPage() {
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		if (submitting) return;
+		const fields = [
+			title.trim(),
+			description,
+			submitterName.trim(),
+			submitterContact.trim(),
+		];
+		if (fields.some(mentionsPaymentOrCardFraud)) {
+			setError(OUT_OF_SCOPE_PAYMENT_FRAUD_MESSAGE);
+			return;
+		}
+
 		setSubmitting(true);
 		setError(null);
 		try {
@@ -63,10 +79,20 @@ export default function SupportPage() {
 					Support
 				</h1>
 				<p className="mt-2 text-slate-600">
-					Report a bug, an incident, or request a feature. Your report is filed
-					verbatim and you can track its progress on a live timeline.
+					Report a bug, an incident, or request a feature about deck setup,
+					the palace walk, or game features. Your report is filed verbatim and
+					you can track its progress on a live timeline. Memory Palace never
+					handles payments or credit-card information.
 				</p>
 			</header>
+
+			<div
+				role="note"
+				className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+			>
+				<strong className="font-semibold">Scope:</strong>{" "}
+				{OUT_OF_SCOPE_PAYMENT_FRAUD_MESSAGE}
+			</div>
 
 			<form
 				onSubmit={handleSubmit}
