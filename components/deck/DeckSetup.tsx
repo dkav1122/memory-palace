@@ -87,7 +87,11 @@ export function DeckSetup() {
                 return (
                   <button
                     key={card.id}
-                    onClick={() => setEditing(card.id)}
+                    onClick={() =>
+                      // Ignore switches while the editor is open so a stray
+                      // activation cannot rebind an in-progress photo/name.
+                      setEditing((current) => current ?? card.id)
+                    }
                     className={`group relative aspect-[3/4] overflow-hidden rounded-lg border text-left transition ${
                       assignment
                         ? "border-emerald-700/60 bg-zinc-900"
